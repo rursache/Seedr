@@ -231,12 +231,35 @@ export const useSeedrStore = defineStore('seedr', () => {
     }
   }
 
+  function isTorrentEligible(t: TorrentInfo): boolean {
+    const cfg = config.value;
+    if (!cfg) return true; // Config not loaded yet — assume eligible
+    if (t.completed) return false;
+    if (cfg.skipIfNoPeers && t.seeders + t.leechers === 0) return false;
+    if (!cfg.keepTorrentWithZeroLeechers && t.leechers === 0) return false;
+    if (t.leechers < cfg.minLeechers) return false;
+    if (t.seeders < cfg.minSeeders) return false;
+    return true;
+  }
+
   const activeCount = computed(() =>
     torrents.value.filter((t) => t.active).length
   );
 
   const seedingCount = computed(() =>
-    torrents.value.filter((t) => t.seeding).length
+    torrents.value.filter((t) => t.seeding && isTorrentEligible(t)).length
+  );
+
+  const waitingCount = computed(() =>
+    torrents.value.filter((t) => t.seeding && !isTorrentEligible(t) && !t.completed).length
+  );
+
+  const errorCount = computed(() =>
+    torrents.value.filter((t) => t.consecutiveFailures > 0 && !t.seeding).length
+  );
+
+  const completedCount = computed(() =>
+    torrents.value.filter((t) => t.completed).length
   );
 
   const isSeeding = computed(() =>
@@ -257,7 +280,11 @@ export const useSeedrStore = defineStore('seedr', () => {
     connected,
     activeCount,
     seedingCount,
+    waitingCount,
+    errorCount,
+    completedCount,
     isSeeding,
+    isTorrentEligible,
     actionPending,
     portCheck,
     fetchConfig,

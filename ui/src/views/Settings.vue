@@ -15,7 +15,7 @@ const form = ref({
   keepTorrentWithZeroLeechers: true,
   skipIfNoPeers: true,
   minLeechers: 1,
-  minSeeders: 0,
+  minSeeders: 1,
   uploadRatioTarget: -1,
 });
 

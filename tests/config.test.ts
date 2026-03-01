@@ -51,7 +51,7 @@ describe('Config', () => {
       expect(config.keepTorrentWithZeroLeechers).toBe(true);
       expect(config.skipIfNoPeers).toBe(true);
       expect(config.minLeechers).toBe(1);
-      expect(config.minSeeders).toBe(0);
+      expect(config.minSeeders).toBe(1);
       expect(config.uploadRatioTarget).toBe(-1);
     });
 

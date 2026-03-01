@@ -92,7 +92,7 @@ All configuration is managed through the web UI Settings panel. Settings are per
 | Simultaneous Seeds | -1 (all) | How many torrents to seed at once (-1 = unlimited) |
 | Upload Ratio Target | -1 (unlimited) | Stop seeding after reaching this ratio (-1 = never stop) |
 | Min Leechers | 1 | Only report upload when this many leechers are present |
-| Min Seeders | 0 | Only report upload when this many seeders are present |
+| Min Seeders | 1 | Only report upload when this many seeders are present |
 | Keep With Zero Leechers | true | Keep seeding torrents that have no leechers |
 | Skip If No Peers | true | Don't report upload if no peers are connected |
 

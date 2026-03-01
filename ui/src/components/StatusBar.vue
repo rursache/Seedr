@@ -28,6 +28,16 @@ const statusClass = computed(() => {
   }
 });
 
+const torrentSegments = computed(() => {
+  const segments: Array<{ count: number; label: string; color: string }> = [];
+  if (store.seedingCount > 0) segments.push({ count: store.seedingCount, label: 'seeding', color: 'text-emerald-600' });
+  if (store.errorCount > 0) segments.push({ count: store.errorCount, label: 'error', color: 'text-red-600' });
+  if (store.waitingCount > 0) segments.push({ count: store.waitingCount, label: 'waiting', color: 'text-yellow-600' });
+  if (store.completedCount > 0) segments.push({ count: store.completedCount, label: 'completed', color: 'text-blue-600' });
+  if (segments.length === 0) segments.push({ count: 0, label: 'seeding', color: 'text-gray-600' });
+  return segments;
+});
+
 const speedDisplay = computed(() => {
   if (!store.isSeeding) return '—';
   return formatSpeed(store.status?.actualUploadRate ?? 0);
@@ -58,9 +68,15 @@ const ipDisplay = computed(() => {
 
     <div class="bg-gray-900 rounded-xl border border-gray-800 p-4">
       <div class="text-xs text-gray-500 uppercase tracking-wide">Torrents</div>
-      <div class="mt-1 text-lg font-semibold text-white">
-        {{ store.seedingCount }} <span class="text-gray-600 text-sm font-normal">seeding</span>
-        / {{ store.torrents.length }} <span class="text-gray-600 text-sm font-normal">loaded</span>
+      <div class="mt-1 text-lg font-semibold text-white flex items-baseline flex-wrap gap-x-1">
+        <template v-for="(seg, i) in torrentSegments" :key="seg.label">
+          <span v-if="i > 0" class="text-gray-700">,</span>
+          <span>{{ seg.count }}</span>
+          <span class="text-sm font-normal" :class="seg.color">{{ seg.label }}</span>
+        </template>
+        <span class="text-gray-700">/</span>
+        {{ store.torrents.length }}
+        <span class="text-gray-600 text-sm font-normal">loaded</span>
       </div>
     </div>
 

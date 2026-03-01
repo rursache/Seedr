@@ -15,7 +15,7 @@ const configSchema = z.object({
   keepTorrentWithZeroLeechers: z.boolean().default(true),
   skipIfNoPeers: z.boolean().default(true),
   minLeechers: z.number().int().min(0).default(1),
-  minSeeders: z.number().int().min(0).default(0),
+  minSeeders: z.number().int().min(0).default(1),
   uploadRatioTarget: z.number().default(-1),
 });
 
@@ -88,7 +88,7 @@ function defaultConfig(): AppConfig {
     keepTorrentWithZeroLeechers: true,
     skipIfNoPeers: true,
     minLeechers: 1,
-    minSeeders: 0,
+    minSeeders: 1,
     uploadRatioTarget: -1,
   };
 }

@@ -79,7 +79,7 @@ const MOCK_TORRENTS: MockTorrent[] = [
     announceCount: 156,
   },
 
-  // Tracker 2: tracker.pixeldust.io — 2 torrents (1 seeding, 1 error)
+  // Tracker 2: tracker.pixeldust.io — 3 torrents (1 seeding, 1 waiting, 1 error)
   {
     name: 'Raccoons.in.Space.2024.1080p.BluRay.x264-TRASHPANDA',
     fileName: 'Raccoons.in.Space.2024.1080p.BluRay.x264-TRASHPANDA.torrent',
@@ -95,6 +95,22 @@ const MOCK_TORRENTS: MockTorrent[] = [
     completed: false,
     consecutiveFailures: 0,
     announceCount: 312,
+  },
+  {
+    name: 'Invisible.Llamas.S03E01.The.Vanishing.1080p.WEB.h264-SPIT',
+    fileName: 'Invisible.Llamas.S03E01.1080p.WEB.h264-SPIT.torrent',
+    size: 2_415_919_104,
+    tracker: 'https://tracker.pixeldust.io/announce',
+    seeders: 45,
+    leechers: 0,
+    uploaded: 1_207_959_552,
+    reportedUploaded: 1_207_959_552,
+    uploadRate: 0,
+    active: true,
+    seeding: true,
+    completed: false,
+    consecutiveFailures: 0,
+    announceCount: 64,
   },
   {
     name: 'Toaster.Revolution.S05E12.Final.720p.WEB-DL.DDP5.1.H.264-CRISPY',
