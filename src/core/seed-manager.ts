@@ -84,6 +84,20 @@ export class SeedManager extends EventEmitter {
     // Start connection handler (bind port, resolve IPs)
     await this.connection.start(this.config.port);
 
+    // Provide torrent context so incoming BT handshakes can be answered
+    this.connection.setContext({
+      getInfoHashes: () => {
+        const hashes = new Set<string>();
+        for (const [hash, torrent] of this.torrents) {
+          if (torrent.active) hashes.add(hash);
+        }
+        return hashes;
+      },
+      getPeerId: (infoHash: string) => {
+        return this.emulatorStates.get(infoHash)?.peerId ?? null;
+      },
+    });
+
     // Start bandwidth dispatcher
     this.bandwidth.start();
 
@@ -524,6 +538,18 @@ export class SeedManager extends EventEmitter {
     if (updates.port !== undefined && updates.port !== oldPort && this.running) {
       await this.connection.stop();
       await this.connection.start(this.config.port);
+      this.connection.setContext({
+        getInfoHashes: () => {
+          const hashes = new Set<string>();
+          for (const [hash, torrent] of this.torrents) {
+            if (torrent.active) hashes.add(hash);
+          }
+          return hashes;
+        },
+        getPeerId: (infoHash: string) => {
+          return this.emulatorStates.get(infoHash)?.peerId ?? null;
+        },
+      });
       logger.info({ port: this.connection.port }, 'Port changed — connection handler restarted');
       this.runPortCheck();
     }

@@ -3,6 +3,9 @@ import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('bandwidth');
 
+/** Standard BT piece sub-chunk size (16 KB). Real clients transfer in these units. */
+const CHUNK_SIZE = 16384;
+
 export interface TorrentBandwidthInfo {
   infoHash: string;
   seeders: number;
@@ -172,12 +175,16 @@ export class BandwidthDispatcher extends EventEmitter {
   }
 
   /**
-   * Get accumulated bytes for a torrent and reset the counter.
+   * Get accumulated bytes for a torrent, rounded down to the nearest chunk
+   * boundary (16 KB). The remainder stays in the accumulator for the next
+   * announce — no bytes are lost. This mimics real BT clients that transfer
+   * data in fixed-size chunks.
    */
   consumeAccumulated(infoHash: string): number {
     const bytes = this.accumulated.get(infoHash) || 0;
-    this.accumulated.set(infoHash, 0);
-    return bytes;
+    const rounded = Math.floor(bytes / CHUNK_SIZE) * CHUNK_SIZE;
+    this.accumulated.set(infoHash, bytes - rounded);
+    return rounded;
   }
 
   /**

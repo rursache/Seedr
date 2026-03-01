@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, reactive } from 'vue';
 import { useSeedrStore } from '../stores/seedr';
 import { formatBytes, formatSpeed } from '../utils/format';
 
@@ -15,6 +15,8 @@ const sortDir = ref<SortDir>(savedDir === 'asc' || savedDir === 'desc' ? savedDi
 if (!savedField) localStorage.setItem('sortField', sortField.value);
 if (!savedDir) localStorage.setItem('sortDir', sortDir.value);
 
+const collapsedGroups = reactive(new Set<string>());
+
 const search = ref('');
 
 function toggleSort(field: SortField) {
@@ -26,6 +28,32 @@ function toggleSort(field: SortField) {
   }
   localStorage.setItem('sortField', sortField.value);
   localStorage.setItem('sortDir', sortDir.value);
+}
+
+function toggleCollapse(tracker: string) {
+  if (collapsedGroups.has(tracker)) {
+    collapsedGroups.delete(tracker);
+  } else {
+    collapsedGroups.add(tracker);
+  }
+}
+
+function trackerHost(url: string): string {
+  try { return new URL(url).hostname; } catch { return url || 'Unknown'; }
+}
+
+/**
+ * Derive a human-friendly tracker name from the hostname.
+ * e.g. "tracker.scenetime.com" → "Scenetime", "flacsfor.me" → "Flacsfor"
+ */
+function trackerName(hostname: string): string {
+  // Remove common prefixes
+  const stripped = hostname.replace(/^(tracker[0-9]*|announce|tr|www)\./, '');
+  // Take the domain name part (before TLD)
+  const parts = stripped.split('.');
+  const name = parts.length >= 2 ? parts[parts.length - 2]! : parts[0]!;
+  // Title-case
+  return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
 const sortedTorrents = computed(() => {
@@ -42,9 +70,21 @@ const sortedTorrents = computed(() => {
   return list;
 });
 
+const groupedTorrents = computed(() => {
+  const groups = new Map<string, typeof sortedTorrents.value>();
+  for (const t of sortedTorrents.value) {
+    const host = trackerHost(t.tracker);
+    if (!groups.has(host)) groups.set(host, []);
+    groups.get(host)!.push(t);
+  }
+  return [...groups.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([host, torrents]) => ({ host, name: trackerName(host), torrents }));
+});
+
 function sortIndicator(field: SortField): string {
   if (sortField.value !== field) return '';
-  return sortDir.value === 'asc' ? ' ▲' : ' ▼';
+  return sortDir.value === 'asc' ? ' \u25B2' : ' \u25BC';
 }
 
 function torrentStatus(torrent: { active: boolean; seeding: boolean; completed: boolean; consecutiveFailures: number }): { label: string; class: string } {
@@ -102,53 +142,71 @@ async function announce(infoHash: string) {
     </div>
 
     <div v-else class="divide-y divide-gray-800">
-      <div
-        v-for="torrent in sortedTorrents"
-        :key="torrent.infoHash"
-        class="px-4 py-3 hover:bg-gray-800/50 transition-colors"
-      >
-        <!-- Row 1: Name + status badge -->
-        <div class="flex items-center justify-between gap-3">
-          <div class="text-sm font-medium text-white truncate">{{ torrent.name }}</div>
-          <span
-            class="text-xs px-2 py-0.5 rounded shrink-0"
-            :class="torrentStatus(torrent).class"
-          >
-            {{ torrentStatus(torrent).label }}
-          </span>
+      <template v-for="group in groupedTorrents" :key="group.host">
+        <!-- Group header -->
+        <div
+          class="px-4 py-2 bg-gray-800/40 flex items-center justify-between cursor-pointer select-none hover:bg-gray-800/60 transition-colors"
+          @click="toggleCollapse(group.host)"
+        >
+          <div class="flex items-center gap-2 text-xs text-gray-400">
+            <span class="text-gray-600 w-3">{{ collapsedGroups.has(group.host) ? '\u25B8' : '\u25BE' }}</span>
+            <span class="font-medium text-gray-300">{{ group.name }}</span>
+            <span class="text-gray-600">{{ group.host }}</span>
+          </div>
+          <span class="text-xs text-gray-600">{{ group.torrents.length }}</span>
         </div>
 
-        <!-- Row 2: Stats -->
-        <div class="flex items-center gap-4 mt-1.5 text-xs text-gray-500">
-          <span>{{ formatBytes(torrent.size) }}</span>
-          <span v-if="torrent.seeding || torrent.completed">
-            <span class="text-emerald-400">S:{{ torrent.seeders }}</span>
-            <span class="mx-1">/</span>
-            <span class="text-amber-400">L:{{ torrent.leechers }}</span>
-          </span>
-          <span v-else class="text-gray-600">S:-- / L:--</span>
-          <span class="text-blue-400">{{ torrent.seeding && !torrent.completed ? formatSpeed(torrent.uploadRate || 0) : '--' }}</span>
-          <span title="Local simulated upload">Local: {{ formatBytes(torrent.uploaded) }}</span>
-          <span class="text-gray-600" title="Reported to tracker">Reported: {{ formatBytes(torrent.reportedUploaded) }}</span>
-        </div>
+        <!-- Torrent cards -->
+        <template v-if="!collapsedGroups.has(group.host)">
+          <div
+            v-for="torrent in group.torrents"
+            :key="torrent.infoHash"
+            class="px-4 py-3 hover:bg-gray-800/50 transition-colors"
+          >
+            <!-- Row 1: Name + status badge -->
+            <div class="flex items-center justify-between gap-3">
+              <div class="text-sm font-medium text-white truncate">{{ torrent.name }}</div>
+              <span
+                class="text-xs px-2 py-0.5 rounded shrink-0"
+                :class="torrentStatus(torrent).class"
+              >
+                {{ torrentStatus(torrent).label }}
+              </span>
+            </div>
 
-        <!-- Row 3: Actions -->
-        <div class="flex items-center gap-3 mt-2">
-          <button
-            v-if="torrent.active && store.status?.running"
-            @click="announce(torrent.infoHash)"
-            class="text-xs text-gray-500 hover:text-blue-400 transition-colors"
-          >
-            Force Announce
-          </button>
-          <button
-            @click="remove(torrent.infoHash)"
-            class="text-xs text-gray-500 hover:text-red-400 transition-colors"
-          >
-            Remove
-          </button>
-        </div>
-      </div>
+            <!-- Row 2: Stats -->
+            <div class="flex items-center gap-4 mt-1.5 text-xs text-gray-500">
+              <span>{{ formatBytes(torrent.size) }}</span>
+              <span v-if="torrent.seeding || torrent.completed">
+                <span class="text-emerald-400">S:{{ torrent.seeders }}</span>
+                <span class="mx-1">/</span>
+                <span class="text-amber-400">L:{{ torrent.leechers }}</span>
+              </span>
+              <span v-else class="text-gray-600">S:-- / L:--</span>
+              <span class="text-blue-400">{{ torrent.seeding && !torrent.completed ? formatSpeed(torrent.uploadRate || 0) : '--' }}</span>
+              <span title="Local simulated upload">Local: {{ formatBytes(torrent.uploaded) }}</span>
+              <span class="text-gray-600" title="Reported to tracker">Reported: {{ formatBytes(torrent.reportedUploaded) }}</span>
+            </div>
+
+            <!-- Row 3: Actions -->
+            <div class="flex items-center gap-3 mt-2">
+              <button
+                v-if="torrent.active && store.status?.running"
+                @click="announce(torrent.infoHash)"
+                class="text-xs text-gray-500 hover:text-blue-400 transition-colors"
+              >
+                Force Announce
+              </button>
+              <button
+                @click="remove(torrent.infoHash)"
+                class="text-xs text-gray-500 hover:text-red-400 transition-colors"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </template>
+      </template>
     </div>
   </div>
 </template>

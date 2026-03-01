@@ -266,12 +266,12 @@ describe('BandwidthDispatcher', () => {
       dispatcher.registerTorrent({ infoHash: 'aaa', seeders: 1, leechers: 5, active: true, eligible: true });
 
       // Manually set some accumulated bytes then consume
-      dispatcher.restoreAccumulated('aaa', 5000);
-      expect(dispatcher.getAccumulated('aaa')).toBe(5000);
+      dispatcher.restoreAccumulated('aaa', 32768); // 2 chunks
+      expect(dispatcher.getAccumulated('aaa')).toBe(32768);
 
-      // Consume and verify
+      // Consume and verify (chunk-aligned: 32768 / 16384 = 2 full chunks)
       const consumed = dispatcher.consumeAccumulated('aaa');
-      expect(consumed).toBe(5000);
+      expect(consumed).toBe(32768);
       expect(dispatcher.getAccumulated('aaa')).toBe(0);
 
       // Restore after consume
@@ -331,6 +331,73 @@ describe('BandwidthDispatcher', () => {
           resolve();
         }, 1500);
       });
+    });
+  });
+
+  describe('chunk alignment (16 KB rounding)', () => {
+    it('should round consumed bytes down to 16 KB boundary', () => {
+      dispatcher.registerTorrent({ infoHash: 'aaa', seeders: 1, leechers: 5, active: true, eligible: true });
+
+      // 50000 bytes → floor(50000 / 16384) * 16384 = 3 * 16384 = 49152
+      dispatcher.restoreAccumulated('aaa', 50000);
+      const consumed = dispatcher.consumeAccumulated('aaa');
+      expect(consumed).toBe(49152); // 3 full chunks
+    });
+
+    it('should keep remainder in accumulator', () => {
+      dispatcher.registerTorrent({ infoHash: 'aaa', seeders: 1, leechers: 5, active: true, eligible: true });
+
+      dispatcher.restoreAccumulated('aaa', 50000);
+      dispatcher.consumeAccumulated('aaa');
+      // Remainder: 50000 - 49152 = 848
+      expect(dispatcher.getAccumulated('aaa')).toBe(848);
+    });
+
+    it('should return 0 when accumulated bytes < one chunk', () => {
+      dispatcher.registerTorrent({ infoHash: 'aaa', seeders: 1, leechers: 5, active: true, eligible: true });
+
+      dispatcher.restoreAccumulated('aaa', 10000); // < 16384
+      const consumed = dispatcher.consumeAccumulated('aaa');
+      expect(consumed).toBe(0);
+      // All bytes preserved
+      expect(dispatcher.getAccumulated('aaa')).toBe(10000);
+    });
+
+    it('should carry remainder across multiple consumes', () => {
+      dispatcher.registerTorrent({ infoHash: 'aaa', seeders: 1, leechers: 5, active: true, eligible: true });
+
+      // First round: 20000 bytes → 16384 consumed, 3616 remainder
+      dispatcher.restoreAccumulated('aaa', 20000);
+      expect(dispatcher.consumeAccumulated('aaa')).toBe(16384);
+      expect(dispatcher.getAccumulated('aaa')).toBe(3616);
+
+      // Second round: add 13000 → 3616 + 13000 = 16616 → 16384 consumed, 232 remainder
+      dispatcher.restoreAccumulated('aaa', 13000);
+      expect(dispatcher.consumeAccumulated('aaa')).toBe(16384);
+      expect(dispatcher.getAccumulated('aaa')).toBe(232);
+    });
+
+    it('should return exact amount when already chunk-aligned', () => {
+      dispatcher.registerTorrent({ infoHash: 'aaa', seeders: 1, leechers: 5, active: true, eligible: true });
+
+      dispatcher.restoreAccumulated('aaa', 16384 * 5); // exactly 5 chunks
+      const consumed = dispatcher.consumeAccumulated('aaa');
+      expect(consumed).toBe(16384 * 5);
+      expect(dispatcher.getAccumulated('aaa')).toBe(0);
+    });
+
+    it('should work correctly with restoreAccumulated after rounded consume', () => {
+      dispatcher.registerTorrent({ infoHash: 'aaa', seeders: 1, leechers: 5, active: true, eligible: true });
+
+      // Consume 2 chunks, keep remainder
+      dispatcher.restoreAccumulated('aaa', 40000);
+      const consumed = dispatcher.consumeAccumulated('aaa'); // 32768
+      expect(consumed).toBe(32768);
+
+      // Simulate failed announce — restore consumed bytes
+      dispatcher.restoreAccumulated('aaa', consumed);
+      // Should have remainder + restored = (40000 - 32768) + 32768 = 40000
+      expect(dispatcher.getAccumulated('aaa')).toBe(40000);
     });
   });
 

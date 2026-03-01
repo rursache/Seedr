@@ -95,6 +95,7 @@ onUnmounted(() => {
         <div class="flex items-center justify-between h-14">
           <!-- Left: Logo + connection status -->
           <div class="flex items-center gap-4">
+            <img src="/favicon.svg" alt="Seedr" class="h-6 w-6" />
             <span class="text-lg font-bold text-emerald-400 tracking-tight">Seedr</span>
             <span
               class="flex items-center gap-1.5 text-xs"

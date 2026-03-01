@@ -1,6 +1,6 @@
 # Seedr
 
-<img src="assets/logo.png" alt="logo" width="150">
+<img src="assets/logo.svg" alt="logo" width="150">
 
 BitTorrent ratio master - emulates BT clients and reports simulated upload to private trackers.
 
