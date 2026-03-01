@@ -28,6 +28,7 @@ interface AppConfig {
   keepTorrentWithZeroLeechers: boolean;
   skipIfNoPeers: boolean;
   minLeechers: number;
+  minSeeders: number;
   uploadRatioTarget: number;
 }
 

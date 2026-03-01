@@ -9,10 +9,11 @@ const form = ref({
   port: 49152,
   minUploadRate: 100,
   maxUploadRate: 500,
-  simultaneousSeed: 10,
+  simultaneousSeed: -1,
   keepTorrentWithZeroLeechers: true,
   skipIfNoPeers: true,
-  minLeechers: 0,
+  minLeechers: 1,
+  minSeeders: 0,
   uploadRatioTarget: -1,
 });
 
@@ -136,17 +137,30 @@ async function save() {
 
       <p v-if="seedWarning" class="text-xs text-amber-400 -mt-3">{{ seedWarning }}</p>
 
-      <!-- Min Leechers -->
-      <div>
-        <label class="block text-sm font-medium text-gray-300 mb-1">
-          Min Leechers <span class="text-gray-500">(require N leechers to report upload)</span>
-        </label>
-        <input
-          v-model.number="form.minLeechers"
-          type="number"
-          min="0"
-          class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-        />
+      <!-- Min Leechers / Min Seeders -->
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-1">
+            Min Leechers <span class="text-gray-500">(to report upload)</span>
+          </label>
+          <input
+            v-model.number="form.minLeechers"
+            type="number"
+            min="0"
+            class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+          />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-1">
+            Min Seeders <span class="text-gray-500">(to report upload)</span>
+          </label>
+          <input
+            v-model.number="form.minSeeders"
+            type="number"
+            min="0"
+            class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+          />
+        </div>
       </div>
 
       <!-- Upload Ratio Target -->

@@ -50,7 +50,8 @@ describe('Config', () => {
       expect(config.simultaneousSeed).toBe(-1);
       expect(config.keepTorrentWithZeroLeechers).toBe(true);
       expect(config.skipIfNoPeers).toBe(true);
-      expect(config.minLeechers).toBe(0);
+      expect(config.minLeechers).toBe(1);
+      expect(config.minSeeders).toBe(0);
       expect(config.uploadRatioTarget).toBe(-1);
     });
 
@@ -64,6 +65,7 @@ describe('Config', () => {
         keepTorrentWithZeroLeechers: false,
         skipIfNoPeers: false,
         minLeechers: 2,
+        minSeeders: 1,
         uploadRatioTarget: 1.5,
       };
 
@@ -76,6 +78,7 @@ describe('Config', () => {
       expect(config.simultaneousSeed).toBe(5);
       expect(config.keepTorrentWithZeroLeechers).toBe(false);
       expect(config.minLeechers).toBe(2);
+      expect(config.minSeeders).toBe(1);
       expect(config.uploadRatioTarget).toBe(1.5);
     });
 
@@ -110,6 +113,7 @@ describe('Config', () => {
         keepTorrentWithZeroLeechers: true,
         skipIfNoPeers: true,
         minLeechers: 0,
+        minSeeders: 0,
         uploadRatioTarget: -1,
       };
 

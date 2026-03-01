@@ -14,7 +14,8 @@ const configSchema = z.object({
   simultaneousSeed: z.number().int().min(-1).refine((v) => v !== 0, { message: 'Must be -1 (unlimited) or >= 1' }).default(-1),
   keepTorrentWithZeroLeechers: z.boolean().default(true),
   skipIfNoPeers: z.boolean().default(true),
-  minLeechers: z.number().int().min(0).default(0),
+  minLeechers: z.number().int().min(0).default(1),
+  minSeeders: z.number().int().min(0).default(0),
   uploadRatioTarget: z.number().default(-1),
 });
 
@@ -86,7 +87,8 @@ function defaultConfig(): AppConfig {
     simultaneousSeed: -1,
     keepTorrentWithZeroLeechers: true,
     skipIfNoPeers: true,
-    minLeechers: 0,
+    minLeechers: 1,
+    minSeeders: 0,
     uploadRatioTarget: -1,
   };
 }

@@ -35,7 +35,7 @@ curl -O https://raw.githubusercontent.com/rursache/Seedr/master/docker-compose.y
 docker compose up -d
 ```
 
-The web UI is available at `http://localhost:6688`. Drop `.torrent` files into the `data/torrents/` directory or upload via the dashboard.
+The web UI is available at `http://localhost:8080`. Drop `.torrent` files into the `data/torrents/` directory or upload via the dashboard.
 
 ### Docker manual
 
@@ -85,7 +85,8 @@ All configuration is managed through the web UI Settings panel. Settings are per
 | Max Upload Rate | 500 KB/s | Maximum simulated upload speed |
 | Simultaneous Seeds | -1 (all) | How many torrents to seed at once (-1 = unlimited) |
 | Upload Ratio Target | -1 (unlimited) | Stop seeding after reaching this ratio (-1 = never stop) |
-| Min Leechers | 0 | Only report upload when this many leechers are present |
+| Min Leechers | 1 | Only report upload when this many leechers are present |
+| Min Seeders | 0 | Only report upload when this many seeders are present |
 | Keep With Zero Leechers | true | Keep seeding torrents that have no leechers |
 | Skip If No Peers | true | Don't report upload if no peers are connected |
 

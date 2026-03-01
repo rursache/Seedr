@@ -15,6 +15,8 @@ const sortDir = ref<SortDir>(savedDir === 'asc' || savedDir === 'desc' ? savedDi
 if (!savedField) localStorage.setItem('sortField', sortField.value);
 if (!savedDir) localStorage.setItem('sortDir', sortDir.value);
 
+const search = ref('');
+
 function toggleSort(field: SortField) {
   if (sortField.value === field) {
     sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc';
@@ -27,7 +29,10 @@ function toggleSort(field: SortField) {
 }
 
 const sortedTorrents = computed(() => {
-  const list = [...store.torrents];
+  const q = search.value.toLowerCase().trim();
+  const list = q
+    ? store.torrents.filter((t) => t.name.toLowerCase().includes(q))
+    : [...store.torrents];
   const dir = sortDir.value === 'asc' ? 1 : -1;
   if (sortField.value === 'name') {
     list.sort((a, b) => dir * a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
@@ -63,24 +68,37 @@ async function announce(infoHash: string) {
 
 <template>
   <div class="bg-gray-900 rounded-lg border border-gray-800">
-    <div class="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
-      <h2 class="text-sm font-semibold text-gray-300">Torrents</h2>
-      <div v-if="store.torrents.length > 1" class="flex items-center gap-1 text-xs text-gray-500">
-        <button
-          @click="toggleSort('name')"
-          class="px-1.5 py-0.5 rounded transition-colors"
-          :class="sortField === 'name' ? 'text-gray-300 bg-gray-800' : 'hover:text-gray-400'"
-        >Name{{ sortIndicator('name') }}</button>
-        <button
-          @click="toggleSort('added')"
-          class="px-1.5 py-0.5 rounded transition-colors"
-          :class="sortField === 'added' ? 'text-gray-300 bg-gray-800' : 'hover:text-gray-400'"
-        >Added{{ sortIndicator('added') }}</button>
+    <div class="px-4 py-3 border-b border-gray-800 flex items-center justify-between gap-3">
+      <h2 class="text-sm font-semibold text-gray-300 shrink-0">Torrents</h2>
+      <div class="flex items-center gap-2">
+        <input
+          v-if="store.torrents.length >= 5"
+          v-model="search"
+          type="text"
+          placeholder="Search..."
+          class="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-gray-600 w-36"
+        />
+        <div v-if="store.torrents.length > 1" class="flex items-center gap-1 text-xs text-gray-500">
+          <button
+            @click="toggleSort('name')"
+            class="px-1.5 py-0.5 rounded transition-colors"
+            :class="sortField === 'name' ? 'text-gray-300 bg-gray-800' : 'hover:text-gray-400'"
+          >Name{{ sortIndicator('name') }}</button>
+          <button
+            @click="toggleSort('added')"
+            class="px-1.5 py-0.5 rounded transition-colors"
+            :class="sortField === 'added' ? 'text-gray-300 bg-gray-800' : 'hover:text-gray-400'"
+          >Added{{ sortIndicator('added') }}</button>
+        </div>
       </div>
     </div>
 
     <div v-if="store.torrents.length === 0" class="px-4 py-8 text-center text-gray-500 text-sm">
       No torrents loaded. Drop .torrent files anywhere or use Add Torrent.
+    </div>
+
+    <div v-else-if="sortedTorrents.length === 0" class="px-4 py-8 text-center text-gray-500 text-sm">
+      No torrents matching "{{ search }}"
     </div>
 
     <div v-else class="divide-y divide-gray-800">

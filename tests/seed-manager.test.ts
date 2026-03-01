@@ -12,6 +12,7 @@ function makeConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     keepTorrentWithZeroLeechers: true,
     skipIfNoPeers: true,
     minLeechers: 0,
+    minSeeders: 0,
     uploadRatioTarget: -1,
     ...overrides,
   };
@@ -111,6 +112,24 @@ describe('checkTorrentEligible', () => {
   it('should return true when leechers above minLeechers', () => {
     const config = makeConfig({ minLeechers: 3 });
     const torrent = makeTorrent({ seeders: 10, leechers: 10 });
+    expect(checkTorrentEligible(config, torrent)).toBe(true);
+  });
+
+  it('should return false when seeders below minSeeders', () => {
+    const config = makeConfig({ minSeeders: 5 });
+    const torrent = makeTorrent({ seeders: 3, leechers: 10 });
+    expect(checkTorrentEligible(config, torrent)).toBe(false);
+  });
+
+  it('should return true when seeders equal to minSeeders', () => {
+    const config = makeConfig({ minSeeders: 5 });
+    const torrent = makeTorrent({ seeders: 5, leechers: 10 });
+    expect(checkTorrentEligible(config, torrent)).toBe(true);
+  });
+
+  it('should return true when seeders above minSeeders', () => {
+    const config = makeConfig({ minSeeders: 5 });
+    const torrent = makeTorrent({ seeders: 20, leechers: 10 });
     expect(checkTorrentEligible(config, torrent)).toBe(true);
   });
 

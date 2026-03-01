@@ -575,7 +575,8 @@ export class SeedManager extends EventEmitter {
     // Re-evaluate eligibility when peer-related settings change
     if (updates.keepTorrentWithZeroLeechers !== undefined ||
         updates.skipIfNoPeers !== undefined ||
-        updates.minLeechers !== undefined) {
+        updates.minLeechers !== undefined ||
+        updates.minSeeders !== undefined) {
       for (const [hash, torrent] of this.torrents) {
         this.bandwidth.updateTorrent(hash, { eligible: this.isTorrentEligible(torrent) });
       }
@@ -690,6 +691,7 @@ export function checkTorrentEligible(config: AppConfig, torrent: TorrentRuntimeS
   if (config.skipIfNoPeers && torrent.seeders + torrent.leechers === 0) return false;
   if (!config.keepTorrentWithZeroLeechers && torrent.leechers === 0) return false;
   if (torrent.leechers < config.minLeechers) return false;
+  if (torrent.seeders < config.minSeeders) return false;
   return true;
 }
 
