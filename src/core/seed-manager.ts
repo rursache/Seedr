@@ -32,8 +32,13 @@ import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('seed-manager');
 
-const STATE_SAVE_INTERVAL = 60000; // Save state every 60 seconds
-const POLL_INTERVAL = 1000; // Check scheduler every second
+const STATE_SAVE_INTERVAL = 60_000; // Save state every 60 seconds
+const POLL_INTERVAL = 1_000; // Check scheduler every second
+const ANNOUNCE_INTERVAL_MIN = 60; // seconds
+const ANNOUNCE_INTERVAL_MAX = 86_400; // 1 day in seconds
+const RETRY_BASE_DELAY = 30_000; // 30s base retry delay
+const RETRY_MAX_DELAY = 480_000; // 8 min max retry delay
+const STOP_ANNOUNCE_TIMEOUT = 10_000; // 10s timeout for stop announces
 
 export class SeedManager extends EventEmitter {
   private config!: AppConfig;
@@ -94,18 +99,7 @@ export class SeedManager extends EventEmitter {
     await this.connection.start(this.config.port);
 
     // Provide torrent context so incoming BT handshakes can be answered
-    this.connection.setContext({
-      getInfoHashes: () => {
-        const hashes = new Set<string>();
-        for (const [hash, torrent] of this.torrents) {
-          if (torrent.active) hashes.add(hash);
-        }
-        return hashes;
-      },
-      getPeerId: (infoHash: string) => {
-        return this.emulatorStates.get(infoHash)?.peerId ?? null;
-      },
-    });
+    this.connection.setContext(this.createConnectionContext());
 
     // Start bandwidth dispatcher
     this.bandwidth.start();
@@ -190,7 +184,7 @@ export class SeedManager extends EventEmitter {
     }
 
     if (stopPromises.length > 0) {
-      const timeout = new Promise<void>((resolve) => setTimeout(resolve, 10000));
+      const timeout = new Promise<void>((resolve) => setTimeout(resolve, STOP_ANNOUNCE_TIMEOUT));
       await Promise.race([Promise.allSettled(stopPromises), timeout]);
     }
 
@@ -474,13 +468,62 @@ export class SeedManager extends EventEmitter {
     // Schedule next announce (unless stopped)
     if (event !== 'stopped' && torrent.active) {
       if (result.success) {
-        // Clamp interval to sane range: 60s minimum, 1 day maximum
-        const clampedInterval = Math.max(60, Math.min(torrent.interval, 86400));
+        const clampedInterval = Math.max(ANNOUNCE_INTERVAL_MIN, Math.min(torrent.interval, ANNOUNCE_INTERVAL_MAX));
         this.scheduler.schedule(infoHash, clampedInterval * 1000);
       } else {
-        // Short retry with exponential backoff: 30s, 60s, 120s, 240s, 480s (cap)
-        const retryDelay = Math.min(30000 * Math.pow(2, torrent.consecutiveFailures - 1), 480000);
+        // Exponential backoff: 30s, 60s, 120s, 240s, 480s (cap)
+        const retryDelay = Math.min(RETRY_BASE_DELAY * Math.pow(2, torrent.consecutiveFailures - 1), RETRY_MAX_DELAY);
         this.scheduler.schedule(infoHash, retryDelay);
+      }
+    }
+  }
+
+  private createConnectionContext() {
+    return {
+      getInfoHashes: () => {
+        const hashes = new Set<string>();
+        for (const [hash, torrent] of this.torrents) {
+          if (torrent.active) hashes.add(hash);
+        }
+        return hashes;
+      },
+      getPeerId: (infoHash: string) => {
+        return this.emulatorStates.get(infoHash)?.peerId ?? null;
+      },
+    };
+  }
+
+  private rebalanceActiveTorrents(): void {
+    const active = [...this.torrents.values()].filter((t) => t.active);
+    const inactive = [...this.torrents.values()].filter((t) => !t.active);
+    const limit = this.config.simultaneousSeed;
+
+    if (limit === -1) {
+      // Unlimited — activate all inactive torrents
+      for (const t of inactive) {
+        t.active = true;
+        const hash = infoHashToHex(t.meta.infoHash);
+        this.bandwidth.updateTorrent(hash, { active: true, eligible: this.isTorrentEligible(t) });
+        this.scheduler.schedule(hash, 0);
+      }
+    } else if (limit > 0 && active.length > limit) {
+      // Deactivate excess torrents
+      const excess = active.slice(limit);
+      for (const t of excess) {
+        t.active = false;
+        const hash = infoHashToHex(t.meta.infoHash);
+        this.bandwidth.updateTorrent(hash, { active: false, eligible: false });
+        this.scheduler.remove(hash);
+      }
+    } else if (limit > 0 && active.length < limit && inactive.length > 0) {
+      // Activate more torrents
+      const slotsAvailable = limit - active.length;
+      const toActivate = inactive.slice(0, slotsAvailable);
+      for (const t of toActivate) {
+        t.active = true;
+        const hash = infoHashToHex(t.meta.infoHash);
+        this.bandwidth.updateTorrent(hash, { active: true, eligible: this.isTorrentEligible(t) });
+        this.scheduler.schedule(hash, 0);
       }
     }
   }
@@ -547,56 +590,14 @@ export class SeedManager extends EventEmitter {
     if (updates.port !== undefined && updates.port !== oldPort && this.running) {
       await this.connection.stop();
       await this.connection.start(this.config.port);
-      this.connection.setContext({
-        getInfoHashes: () => {
-          const hashes = new Set<string>();
-          for (const [hash, torrent] of this.torrents) {
-            if (torrent.active) hashes.add(hash);
-          }
-          return hashes;
-        },
-        getPeerId: (infoHash: string) => {
-          return this.emulatorStates.get(infoHash)?.peerId ?? null;
-        },
-      });
+      this.connection.setContext(this.createConnectionContext());
       logger.info({ port: this.connection.port }, 'Port changed — connection handler restarted');
       this.runPortCheck();
     }
 
     // If simultaneousSeed changed, activate/deactivate torrents accordingly
     if (updates.simultaneousSeed !== undefined) {
-      const active = [...this.torrents.values()].filter((t) => t.active);
-      const inactive = [...this.torrents.values()].filter((t) => !t.active);
-      const limit = this.config.simultaneousSeed;
-
-      if (limit === -1) {
-        // Unlimited — activate all inactive torrents
-        for (const t of inactive) {
-          t.active = true;
-          const hash = infoHashToHex(t.meta.infoHash);
-          this.bandwidth.updateTorrent(hash, { active: true, eligible: this.isTorrentEligible(t) });
-          this.scheduler.schedule(hash, 0);
-        }
-      } else if (limit > 0 && active.length > limit) {
-        // Deactivate excess torrents
-        const excess = active.slice(limit);
-        for (const t of excess) {
-          t.active = false;
-          const hash = infoHashToHex(t.meta.infoHash);
-          this.bandwidth.updateTorrent(hash, { active: false, eligible: false });
-          this.scheduler.remove(hash);
-        }
-      } else if (limit > 0 && active.length < limit && inactive.length > 0) {
-        // Activate more torrents
-        const slotsAvailable = limit - active.length;
-        const toActivate = inactive.slice(0, slotsAvailable);
-        for (const t of toActivate) {
-          t.active = true;
-          const hash = infoHashToHex(t.meta.infoHash);
-          this.bandwidth.updateTorrent(hash, { active: true, eligible: this.isTorrentEligible(t) });
-          this.scheduler.schedule(hash, 0);
-        }
-      }
+      this.rebalanceActiveTorrents();
     }
 
     // Re-evaluate completed flag when uploadRatioTarget changes

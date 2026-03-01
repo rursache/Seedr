@@ -1,8 +1,10 @@
 import type { FastifyInstance } from 'fastify';
-import { writeFileSync, unlinkSync, existsSync } from 'node:fs';
-import { join, resolve, basename } from 'node:path';
+import { writeFileSync, unlinkSync } from 'node:fs';
+import { resolve, basename } from 'node:path';
 import { TORRENTS_DIR } from '../../config/config.js';
 import type { SeedManager } from '../../core/seed-manager.js';
+
+const INFO_HASH_RE = /^[0-9a-f]{40}$/i;
 
 export function registerTorrentRoutes(server: FastifyInstance, seedManager: SeedManager): void {
   server.get('/api/torrents', async () => {
@@ -10,7 +12,12 @@ export function registerTorrentRoutes(server: FastifyInstance, seedManager: Seed
   });
 
   server.post('/api/torrents', async (request, reply) => {
-    const data = await request.file();
+    let data;
+    try {
+      data = await request.file();
+    } catch {
+      return reply.status(400).send({ error: 'Invalid multipart request' });
+    }
     if (!data) {
       return reply.status(400).send({ error: 'No file uploaded' });
     }
@@ -43,6 +50,9 @@ export function registerTorrentRoutes(server: FastifyInstance, seedManager: Seed
     '/api/torrents/:infoHash',
     async (request, reply) => {
       const { infoHash } = request.params;
+      if (!INFO_HASH_RE.test(infoHash)) {
+        return reply.status(400).send({ error: 'Invalid infoHash format' });
+      }
       const torrents = seedManager.getTorrentList();
       const torrent = torrents.find((t) => t.infoHash === infoHash);
 
@@ -60,6 +70,9 @@ export function registerTorrentRoutes(server: FastifyInstance, seedManager: Seed
     '/api/torrents/:infoHash/announce',
     async (request, reply) => {
       const { infoHash } = request.params;
+      if (!INFO_HASH_RE.test(infoHash)) {
+        return reply.status(400).send({ error: 'Invalid infoHash format' });
+      }
 
       if (!seedManager.isRunning()) {
         return reply.status(400).send({ error: 'Engine is not running' });
