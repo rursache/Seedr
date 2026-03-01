@@ -492,14 +492,14 @@ export class SeedManager extends EventEmitter {
 
     const torrentStates = [...this.torrents.values()].map((t) => {
       const hexHash = infoHashToHex(t.meta.infoHash);
-      // Include unreported accumulated bytes so the UI shows real-time upload total
       const unreported = this.bandwidth.getAccumulated(hexHash);
       return {
         ...t,
         uploadRate: allocMap.get(hexHash) || 0,
+        reportedUploaded: t.seedState.uploaded, // What the tracker knows
         seedState: {
           ...t.seedState,
-          uploaded: t.seedState.uploaded + unreported,
+          uploaded: t.seedState.uploaded + unreported, // Real-time local total
         },
       };
     });
@@ -521,6 +521,7 @@ export class SeedManager extends EventEmitter {
     name: string;
     size: number;
     uploaded: number;
+    reportedUploaded: number;
     seeders: number;
     leechers: number;
     active: boolean;
@@ -534,6 +535,7 @@ export class SeedManager extends EventEmitter {
         name: t.meta.name,
         size: t.meta.totalSize,
         uploaded: t.seedState.uploaded + unreported,
+        reportedUploaded: t.seedState.uploaded,
         seeders: t.seeders,
         leechers: t.leechers,
         active: t.active,

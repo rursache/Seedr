@@ -7,6 +7,7 @@ interface TorrentInfo {
   name: string;
   size: number;
   uploaded: number;
+  reportedUploaded: number;
   seeders: number;
   leechers: number;
   active: boolean;
@@ -98,6 +99,7 @@ export const useSeedrStore = defineStore('seedr', () => {
         name: t.meta?.name || 'Unknown',
         size: t.meta?.totalSize || 0,
         uploaded: t.seedState?.uploaded || 0,
+        reportedUploaded: t.reportedUploaded || 0,
         seeders: t.seeders || 0,
         leechers: t.leechers || 0,
         active: t.active,

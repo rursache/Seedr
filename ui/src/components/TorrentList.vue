@@ -43,7 +43,8 @@ async function remove(infoHash: string) {
               </span>
               <span v-else class="text-gray-600">S:— / L:—</span>
               <span class="text-blue-400">{{ torrent.seeding ? formatSpeed(torrent.uploadRate || 0) : '—' }}</span>
-              <span>Up: {{ formatBytes(torrent.uploaded) }}</span>
+              <span title="Local simulated upload">Local: {{ formatBytes(torrent.uploaded) }}</span>
+              <span class="text-gray-600" title="Reported to tracker">Reported: {{ formatBytes(torrent.reportedUploaded) }}</span>
             </div>
           </div>
 
