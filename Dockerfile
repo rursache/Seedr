@@ -49,6 +49,7 @@ ENV SEEDR_DATA_DIR=/data
 ENV WEB_PORT=8080
 
 EXPOSE 8080
+EXPOSE 49152
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["node", "dist/index.js"]

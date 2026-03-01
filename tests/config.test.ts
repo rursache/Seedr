@@ -44,7 +44,7 @@ describe('Config', () => {
     it('should create default config when none exists', () => {
       const config = loadConfig();
 
-      expect(config.port).toBe(0);
+      expect(config.port).toBe(49152);
       expect(config.minUploadRate).toBe(100);
       expect(config.maxUploadRate).toBe(500);
       expect(config.simultaneousSeed).toBe(-1);
@@ -87,7 +87,7 @@ describe('Config', () => {
 
       const config = loadConfig();
       // Should return defaults since config is invalid (missing client)
-      expect(config.port).toBe(0);
+      expect(config.port).toBe(49152);
       expect(config.minUploadRate).toBe(100);
     });
 

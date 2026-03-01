@@ -41,6 +41,7 @@ The web UI is available at `http://localhost:8080`. Drop `.torrent` files into t
 docker run -d \
   --name seedr \
   -p 8080:8080 \
+  -p 49152:49152 \
   -v ./data:/data \
   ghcr.io/rursache/seedr:latest
 ```
@@ -67,6 +68,10 @@ npm run build
 npm start
 ```
 
+## Port Forwarding
+
+The BitTorrent port (default `49152`) is the port that trackers and peers use to verify your client is reachable. This is the port you need to forward on your router/firewall - not the web UI port. The web UI port (`8080`) should stay local and not be exposed to the internet.
+
 ## Configuration
 
 All configuration is managed through the web UI Settings panel. Settings are persisted to `data/config.json`.
@@ -74,7 +79,7 @@ All configuration is managed through the web UI Settings panel. Settings are per
 | Setting | Default | Description |
 |---------|---------|-------------|
 | Client Profile | qbittorrent-5.1.4 | Which BT client to emulate |
-| Port | 0 (random) | Listening port announced to trackers (0 = random 49152-65534) |
+| Port | 49152 | Listening port announced to trackers (0 = random 49152-65534) |
 | Min Upload Rate | 100 KB/s | Minimum simulated upload speed |
 | Max Upload Rate | 500 KB/s | Maximum simulated upload speed |
 | Simultaneous Seeds | -1 (all) | How many torrents to seed at once (-1 = unlimited) |

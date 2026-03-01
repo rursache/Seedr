@@ -15,6 +15,7 @@ interface TorrentInfo {
   completed: boolean;
   tracker: string;
   uploadRate?: number;
+  addedIndex: number; // insertion order from backend
 }
 
 interface AppConfig {
@@ -96,7 +97,7 @@ export const useSeedrStore = defineStore('seedr', () => {
     const prevRunning = status.value?.running;
     status.value = data;
     if (data.torrents) {
-      torrents.value = data.torrents.map((t: any) => ({
+      torrents.value = data.torrents.map((t: any, i: number) => ({
         infoHash: t.seedState?.infoHash || t.meta?.infoHash?.toString('hex') || '',
         name: t.meta?.name || 'Unknown',
         size: t.meta?.totalSize || 0,
@@ -109,6 +110,7 @@ export const useSeedrStore = defineStore('seedr', () => {
         completed: t.completed || false,
         tracker: t.currentTracker || '',
         uploadRate: t.uploadRate || 0,
+        addedIndex: i,
       }));
     }
     actionPending.value = false;

@@ -146,7 +146,7 @@ export interface SeedState {
 
 export interface AppConfig {
   client: string;
-  port: number; // 0 = random
+  port: number; // 0 = random, default 49152
   minUploadRate: number; // KB/s
   maxUploadRate: number; // KB/s
   simultaneousSeed: number;

@@ -1,8 +1,40 @@
 <script setup lang="ts">
+import { ref, computed } from 'vue';
 import { useSeedrStore } from '../stores/seedr';
 import { formatBytes, formatSpeed } from '../utils/format';
 
 const store = useSeedrStore();
+
+type SortField = 'name' | 'added';
+type SortDir = 'asc' | 'desc';
+
+const sortField = ref<SortField>('name');
+const sortDir = ref<SortDir>('asc');
+
+function toggleSort(field: SortField) {
+  if (sortField.value === field) {
+    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortField.value = field;
+    sortDir.value = 'asc';
+  }
+}
+
+const sortedTorrents = computed(() => {
+  const list = [...store.torrents];
+  const dir = sortDir.value === 'asc' ? 1 : -1;
+  if (sortField.value === 'name') {
+    list.sort((a, b) => dir * a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+  } else {
+    list.sort((a, b) => dir * (a.addedIndex - b.addedIndex));
+  }
+  return list;
+});
+
+function sortIndicator(field: SortField): string {
+  if (sortField.value !== field) return '';
+  return sortDir.value === 'asc' ? ' ▲' : ' ▼';
+}
 
 function torrentStatus(torrent: { active: boolean; seeding: boolean; completed: boolean }): { label: string; class: string } {
   const running = store.status?.running;
@@ -24,8 +56,20 @@ async function announce(infoHash: string) {
 
 <template>
   <div class="bg-gray-900 rounded-lg border border-gray-800">
-    <div class="px-4 py-3 border-b border-gray-800">
+    <div class="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
       <h2 class="text-sm font-semibold text-gray-300">Torrents</h2>
+      <div v-if="store.torrents.length > 1" class="flex items-center gap-1 text-xs text-gray-500">
+        <button
+          @click="toggleSort('name')"
+          class="px-1.5 py-0.5 rounded transition-colors"
+          :class="sortField === 'name' ? 'text-gray-300 bg-gray-800' : 'hover:text-gray-400'"
+        >Name{{ sortIndicator('name') }}</button>
+        <button
+          @click="toggleSort('added')"
+          class="px-1.5 py-0.5 rounded transition-colors"
+          :class="sortField === 'added' ? 'text-gray-300 bg-gray-800' : 'hover:text-gray-400'"
+        >Added{{ sortIndicator('added') }}</button>
+      </div>
     </div>
 
     <div v-if="store.torrents.length === 0" class="px-4 py-8 text-center text-gray-500 text-sm">
@@ -34,7 +78,7 @@ async function announce(infoHash: string) {
 
     <div v-else class="divide-y divide-gray-800">
       <div
-        v-for="torrent in store.torrents"
+        v-for="torrent in sortedTorrents"
         :key="torrent.infoHash"
         class="px-4 py-3 hover:bg-gray-800/50 transition-colors"
       >
