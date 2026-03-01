@@ -144,6 +144,13 @@ export class BandwidthDispatcher extends EventEmitter {
     return bytes;
   }
 
+  /**
+   * Peek at accumulated bytes without consuming (for UI display).
+   */
+  getAccumulated(infoHash: string): number {
+    return this.accumulated.get(infoHash) || 0;
+  }
+
   getGlobalRate(): number {
     // Return 0 if no torrents are eligible (nothing actually being uploaded)
     const hasEligible = [...this.torrents.values()].some((t) => t.eligible && t.active);

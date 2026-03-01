@@ -490,10 +490,19 @@ export class SeedManager extends EventEmitter {
     const allocations = this.bandwidth.getAllocations();
     const allocMap = new Map(allocations.map((a) => [a.infoHash, a.bytesPerSecond]));
 
-    const torrentStates = [...this.torrents.values()].map((t) => ({
-      ...t,
-      uploadRate: allocMap.get(infoHashToHex(t.meta.infoHash)) || 0,
-    }));
+    const torrentStates = [...this.torrents.values()].map((t) => {
+      const hexHash = infoHashToHex(t.meta.infoHash);
+      // Include unreported accumulated bytes so the UI shows real-time upload total
+      const unreported = this.bandwidth.getAccumulated(hexHash);
+      return {
+        ...t,
+        uploadRate: allocMap.get(hexHash) || 0,
+        seedState: {
+          ...t.seedState,
+          uploaded: t.seedState.uploaded + unreported,
+        },
+      };
+    });
 
     return {
       running: this.running,
@@ -518,17 +527,20 @@ export class SeedManager extends EventEmitter {
     seeding: boolean;
     tracker: string;
   }> {
-    return [...this.torrents.entries()].map(([hash, t]) => ({
-      infoHash: hash,
-      name: t.meta.name,
-      size: t.meta.totalSize,
-      uploaded: t.seedState.uploaded,
-      seeders: t.seeders,
-      leechers: t.leechers,
-      active: t.active,
-      seeding: t.seeding,
-      tracker: t.currentTracker,
-    }));
+    return [...this.torrents.entries()].map(([hash, t]) => {
+      const unreported = this.running ? this.bandwidth.getAccumulated(hash) : 0;
+      return {
+        infoHash: hash,
+        name: t.meta.name,
+        size: t.meta.totalSize,
+        uploaded: t.seedState.uploaded + unreported,
+        seeders: t.seeders,
+        leechers: t.leechers,
+        active: t.active,
+        seeding: t.seeding,
+        tracker: t.currentTracker,
+      };
+    });
   }
 
   isRunning(): boolean {

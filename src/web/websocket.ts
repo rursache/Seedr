@@ -5,9 +5,24 @@ import { createLogger } from '../utils/logger.js';
 const logger = createLogger('websocket');
 
 const BROADCAST_INTERVAL = 5000; // Broadcast full state every 5 seconds
+const MAX_RECENT_EVENTS = 50;
+
+interface RecentEvent {
+  type: string;
+  data: any;
+  time: number;
+}
 
 export function setupWebSocket(io: Server, seedManager: SeedManager): void {
   let broadcastTimer: ReturnType<typeof setInterval> | null = null;
+  const recentEvents: RecentEvent[] = [];
+
+  function pushEvent(type: string, data: any) {
+    recentEvents.push({ type, data, time: Date.now() });
+    if (recentEvents.length > MAX_RECENT_EVENTS) {
+      recentEvents.shift();
+    }
+  }
 
   // Forward internal events to WebSocket clients
   const events = [
@@ -22,6 +37,7 @@ export function setupWebSocket(io: Server, seedManager: SeedManager): void {
 
   for (const event of events) {
     seedManager.on(event, (data) => {
+      pushEvent(event, data);
       io.emit(event, data);
     });
   }
@@ -38,6 +54,11 @@ export function setupWebSocket(io: Server, seedManager: SeedManager): void {
 
     // Send initial state
     socket.emit('state', seedManager.getStatus());
+
+    // Send recent events so the client can populate the event log
+    for (const evt of recentEvents) {
+      socket.emit(evt.type, evt.data);
+    }
 
     socket.on('disconnect', () => {
       logger.debug({ id: socket.id }, 'Client disconnected');
