@@ -15,6 +15,7 @@ const sortDir = ref<SortDir>(savedDir === 'asc' || savedDir === 'desc' ? savedDi
 if (!savedField) localStorage.setItem('sortField', sortField.value);
 if (!savedDir) localStorage.setItem('sortDir', sortDir.value);
 
+const showFileName = ref(localStorage.getItem('showFileName') === 'true');
 const collapsedGroups = reactive(new Set<string>());
 
 const search = ref('');
@@ -107,7 +108,7 @@ async function announce(infoHash: string) {
 </script>
 
 <template>
-  <div class="bg-gray-900 rounded-lg border border-gray-800">
+  <div class="bg-gray-900 rounded-xl border border-gray-800">
     <div class="px-4 py-3 border-b border-gray-800 flex items-center justify-between gap-3">
       <h2 class="text-sm font-semibold text-gray-300 shrink-0">Torrents</h2>
       <div class="flex items-center gap-2">
@@ -116,7 +117,7 @@ async function announce(infoHash: string) {
           v-model="search"
           type="text"
           placeholder="Search..."
-          class="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-gray-600 w-36"
+          class="bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-gray-600 w-36"
         />
         <div v-if="store.torrents.length > 1" class="flex items-center gap-1 text-xs text-gray-500">
           <button
@@ -141,72 +142,81 @@ async function announce(infoHash: string) {
       No torrents matching "{{ search }}"
     </div>
 
-    <div v-else class="divide-y divide-gray-800">
-      <template v-for="group in groupedTorrents" :key="group.host">
+    <div v-else>
+      <div v-for="(group, gi) in groupedTorrents" :key="group.host">
         <!-- Group header -->
         <div
           class="px-4 py-2 bg-gray-800/40 flex items-center justify-between cursor-pointer select-none hover:bg-gray-800/60 transition-colors"
+          :class="gi > 0 ? 'border-t border-gray-800' : ''"
           @click="toggleCollapse(group.host)"
         >
           <div class="flex items-center gap-2 text-xs text-gray-400">
-            <span class="text-gray-600 w-3">{{ collapsedGroups.has(group.host) ? '\u25B8' : '\u25BE' }}</span>
+            <span class="text-gray-600 text-xs transition-transform duration-200" :class="collapsedGroups.has(group.host) ? '' : 'rotate-90'">&#9654;</span>
             <span class="font-medium text-gray-300">{{ group.name }}</span>
             <span class="text-gray-600">{{ group.host }}</span>
           </div>
           <span class="text-xs text-gray-600">{{ group.torrents.length }}</span>
         </div>
 
-        <!-- Torrent cards -->
-        <template v-if="!collapsedGroups.has(group.host)">
-          <div
-            v-for="torrent in group.torrents"
-            :key="torrent.infoHash"
-            class="px-4 py-3 hover:bg-gray-800/50 transition-colors"
-          >
-            <!-- Row 1: Name + status badge -->
-            <div class="flex items-center justify-between gap-3">
-              <div class="text-sm font-medium text-white truncate">{{ torrent.name }}</div>
-              <span
-                class="text-xs px-2 py-0.5 rounded shrink-0"
-                :class="torrentStatus(torrent).class"
-              >
-                {{ torrentStatus(torrent).label }}
-              </span>
-            </div>
+        <!-- Animated torrent cards -->
+        <div
+          class="grid transition-[grid-template-rows] duration-200 ease-out"
+          :class="collapsedGroups.has(group.host) ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'"
+        >
+          <div class="overflow-hidden min-h-0">
+            <div
+              v-for="torrent in group.torrents"
+              :key="torrent.infoHash"
+              class="px-4 py-3 hover:bg-gray-800/50 transition-colors border-t border-gray-800"
+            >
+              <!-- Row 1: Name + status badge -->
+              <div class="flex items-center justify-between gap-3">
+                <div
+                  class="text-sm font-medium text-white truncate"
+                  :title="showFileName ? torrent.name : torrent.fileName"
+                >{{ showFileName ? torrent.fileName : torrent.name }}</div>
+                <span
+                  class="text-xs px-2 py-0.5 rounded shrink-0"
+                  :class="torrentStatus(torrent).class"
+                >
+                  {{ torrentStatus(torrent).label }}
+                </span>
+              </div>
 
-            <!-- Row 2: Stats -->
-            <div class="flex items-center gap-4 mt-1.5 text-xs text-gray-500">
-              <span>{{ formatBytes(torrent.size) }}</span>
-              <span v-if="torrent.seeding || torrent.completed">
-                <span class="text-emerald-400">S:{{ torrent.seeders }}</span>
-                <span class="mx-1">/</span>
-                <span class="text-amber-400">L:{{ torrent.leechers }}</span>
-              </span>
-              <span v-else class="text-gray-600">S:-- / L:--</span>
-              <span class="text-blue-400">{{ torrent.seeding && !torrent.completed ? formatSpeed(torrent.uploadRate || 0) : '--' }}</span>
-              <span title="Local simulated upload">Local: {{ formatBytes(torrent.uploaded) }}</span>
-              <span class="text-gray-600" title="Reported to tracker">Reported: {{ formatBytes(torrent.reportedUploaded) }}</span>
-            </div>
+              <!-- Row 2: Stats -->
+              <div class="flex items-center gap-4 mt-1.5 text-xs text-gray-500">
+                <span>{{ formatBytes(torrent.size) }}</span>
+                <span v-if="torrent.seeding || torrent.completed">
+                  <span class="text-emerald-400">S:{{ torrent.seeders }}</span>
+                  <span class="mx-1">/</span>
+                  <span class="text-amber-400">L:{{ torrent.leechers }}</span>
+                </span>
+                <span v-else class="text-gray-600">S:-- / L:--</span>
+                <span class="text-blue-400">{{ torrent.seeding && !torrent.completed ? formatSpeed(torrent.uploadRate || 0) : '--' }}</span>
+                <span title="Local simulated upload">Local: {{ formatBytes(torrent.uploaded) }}</span>
+                <span class="text-gray-600" title="Reported to tracker">Reported: {{ formatBytes(torrent.reportedUploaded) }}</span>
+              </div>
 
-            <!-- Row 3: Actions -->
-            <div class="flex items-center gap-3 mt-2">
-              <button
-                v-if="torrent.active && store.status?.running"
-                @click="announce(torrent.infoHash)"
-                class="text-xs text-gray-500 hover:text-blue-400 transition-colors"
-              >
-                Force Announce
-              </button>
-              <button
-                @click="remove(torrent.infoHash)"
-                class="text-xs text-gray-500 hover:text-red-400 transition-colors"
-              >
-                Remove
-              </button>
+              <!-- Row 3: Actions -->
+              <div class="flex items-center gap-2 mt-2">
+                <button
+                  v-if="torrent.active && store.status?.running"
+                  @click="announce(torrent.infoHash)"
+                  class="text-xs text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 border border-transparent hover:border-blue-500/20 px-2.5 py-1 rounded-lg transition-all"
+                >
+                  Force Announce
+                </button>
+                <button
+                  @click="remove(torrent.infoHash)"
+                  class="text-xs text-gray-500 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 px-2.5 py-1 rounded-lg transition-all"
+                >
+                  Remove
+                </button>
+              </div>
             </div>
           </div>
-        </template>
-      </template>
+        </div>
+      </div>
     </div>
   </div>
 </template>

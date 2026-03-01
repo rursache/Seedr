@@ -5,6 +5,7 @@ import { useWebSocket } from '../composables/useWebSocket';
 interface TorrentInfo {
   infoHash: string;
   name: string;
+  fileName: string;
   size: number;
   uploaded: number;
   reportedUploaded: number;
@@ -88,6 +89,7 @@ export const useSeedrStore = defineStore('seedr', () => {
       torrents.value = data.torrents.map((t: any, i: number) => ({
         infoHash: t.seedState?.infoHash || t.meta?.infoHash?.toString('hex') || '',
         name: t.meta?.name || 'Unknown',
+        fileName: (t.meta?.filePath || '').split('/').pop() || '',
         size: t.meta?.totalSize || 0,
         uploaded: t.seedState?.uploaded || 0,
         reportedUploaded: t.reportedUploaded || 0,

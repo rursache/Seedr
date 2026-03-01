@@ -17,6 +17,7 @@ const form = ref({
   uploadRatioTarget: -1,
 });
 
+const showFileName = ref(localStorage.getItem('showFileName') === 'true');
 const saving = ref(false);
 const saveMessage = ref<{ text: string; error: boolean } | null>(null);
 let savedTimer: ReturnType<typeof setTimeout> | undefined;
@@ -49,6 +50,11 @@ const seedWarning = computed(() => {
 
 const formReady = computed(() => store.configLoaded && form.value.client !== '');
 
+function toggleFileName() {
+  showFileName.value = !showFileName.value;
+  localStorage.setItem('showFileName', String(showFileName.value));
+}
+
 async function save() {
   saving.value = true;
   saveMessage.value = null;
@@ -66,152 +72,198 @@ async function save() {
 </script>
 
 <template>
-  <div class="space-y-5">
-
-    <div v-if="!store.configLoaded" class="text-gray-500 text-sm">
+  <div>
+    <div v-if="!store.configLoaded" class="text-gray-500 text-sm py-8 text-center">
       Loading configuration...
     </div>
 
-    <div v-else class="space-y-5">
-      <!-- Client -->
-      <div>
-        <label class="block text-sm font-medium text-gray-300 mb-1">Client Profile</label>
-        <select
-          v-model="form.client"
-          class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-        >
-          <option v-for="c in store.clients" :key="c" :value="c">{{ c }}</option>
-        </select>
-      </div>
+    <div v-else class="space-y-6">
 
-      <!-- Port -->
-      <div>
-        <label class="block text-sm font-medium text-gray-300 mb-1">
-          Port <span class="text-gray-500">(0 = random, default 49152)</span>
-        </label>
-        <input
-          v-model.number="form.port"
-          type="number"
-          min="0"
-          max="65535"
-          placeholder="49152"
-          class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-        />
-      </div>
-
-      <!-- Speed -->
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-300 mb-1">Min Upload (KB/s)</label>
-          <input
-            v-model.number="form.minUploadRate"
-            type="number"
-            min="0"
-            class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-          />
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-300 mb-1">Max Upload (KB/s)</label>
-          <input
-            v-model.number="form.maxUploadRate"
-            type="number"
-            min="0"
-            class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-          />
-        </div>
-      </div>
-      <p v-if="speedWarning" class="text-xs text-amber-400 -mt-3">{{ speedWarning }}</p>
-
-      <!-- Simultaneous Seeds -->
-      <div>
-        <label class="block text-sm font-medium text-gray-300 mb-1">
-          Simultaneous Seeds <span class="text-gray-500">(-1 = all)</span>
-        </label>
-        <input
-          v-model.number="form.simultaneousSeed"
-          type="number"
-          min="-1"
-          class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-        />
-      </div>
-
-      <p v-if="seedWarning" class="text-xs text-amber-400 -mt-3">{{ seedWarning }}</p>
-
-      <!-- Min Leechers / Min Seeders -->
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-300 mb-1">
-            Min Leechers <span class="text-gray-500">(to report upload)</span>
-          </label>
-          <input
-            v-model.number="form.minLeechers"
-            type="number"
-            min="0"
-            class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-          />
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-300 mb-1">
-            Min Seeders <span class="text-gray-500">(to report upload)</span>
-          </label>
-          <input
-            v-model.number="form.minSeeders"
-            type="number"
-            min="0"
-            class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-          />
-        </div>
-      </div>
-
-      <!-- Upload Ratio Target -->
-      <div>
-        <label class="block text-sm font-medium text-gray-300 mb-1">
-          Upload Ratio Target <span class="text-gray-500">(-1 = unlimited)</span>
-        </label>
-        <input
-          v-model.number="form.uploadRatioTarget"
-          type="number"
-          step="0.1"
-          class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-        />
-      </div>
-
-      <!-- Toggles -->
+      <!-- UI section -->
       <div class="space-y-3">
-        <label class="flex items-center gap-3 cursor-pointer">
-          <input
-            v-model="form.keepTorrentWithZeroLeechers"
-            type="checkbox"
-            class="w-4 h-4 rounded bg-gray-800 border-gray-600 text-emerald-500 focus:ring-emerald-500"
-          />
-          <span class="text-sm text-gray-300">Keep torrents with zero leechers</span>
-        </label>
+        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Interface</h3>
 
-        <label class="flex items-center gap-3 cursor-pointer">
-          <input
-            v-model="form.skipIfNoPeers"
-            type="checkbox"
-            class="w-4 h-4 rounded bg-gray-800 border-gray-600 text-emerald-500 focus:ring-emerald-500"
-          />
-          <span class="text-sm text-gray-300">Skip upload if no peers (safety)</span>
+        <label class="flex items-center justify-between cursor-pointer group py-1">
+          <span class="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">Show filename instead of torrent title</span>
+          <button
+            type="button"
+            role="switch"
+            :aria-checked="showFileName"
+            @click="toggleFileName()"
+            class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none"
+            :class="showFileName ? 'bg-emerald-600' : 'bg-gray-700'"
+          >
+            <span
+              class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform duration-200"
+              :class="showFileName ? 'translate-x-[18px]' : 'translate-x-[3px]'"
+            />
+          </button>
         </label>
       </div>
 
-      <div class="flex items-center gap-3">
+      <!-- Two-column grid -->
+      <div class="border-t border-gray-800 pt-5 grid grid-cols-1 md:grid-cols-2 gap-8">
+
+        <!-- Left column: Client Emulation -->
+        <div class="space-y-4">
+          <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Client Emulation</h3>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-1">Client Profile</label>
+            <select
+              v-model="form.client"
+              class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
+            >
+              <option v-for="c in store.clients" :key="c" :value="c">{{ c }}</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-1">
+              Port <span class="text-gray-600 font-normal ml-1.5">(0 = random)</span>
+            </label>
+            <input
+              v-model.number="form.port"
+              type="number"
+              min="0"
+              max="65535"
+              placeholder="49152"
+              class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
+            />
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-1">Min Upload <span class="text-gray-600 font-normal ml-1.5">(KB/s)</span></label>
+              <input
+                v-model.number="form.minUploadRate"
+                type="number"
+                min="0"
+                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-1">Max Upload <span class="text-gray-600 font-normal ml-1.5">(KB/s)</span></label>
+              <input
+                v-model.number="form.maxUploadRate"
+                type="number"
+                min="0"
+                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
+              />
+            </div>
+          </div>
+          <p v-if="speedWarning" class="text-xs text-amber-400 -mt-2">{{ speedWarning }}</p>
+        </div>
+
+        <!-- Right column: Seeding Rules -->
+        <div class="space-y-4">
+          <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Seeding Rules</h3>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-1">Simultaneous Seeds <span class="text-gray-600 font-normal ml-1.5">(-1 = all)</span></label>
+            <input
+              v-model.number="form.simultaneousSeed"
+              type="number"
+              min="-1"
+              class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
+            />
+          </div>
+          <p v-if="seedWarning" class="text-xs text-amber-400 -mt-2">{{ seedWarning }}</p>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-1">Ratio Target <span class="text-gray-600 font-normal ml-1.5">(-1 = unlimited)</span></label>
+            <input
+              v-model.number="form.uploadRatioTarget"
+              type="number"
+              step="0.1"
+              class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
+            />
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-1">Min Leechers</label>
+              <input
+                v-model.number="form.minLeechers"
+                type="number"
+                min="0"
+                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-1">Min Seeders</label>
+              <input
+                v-model.number="form.minSeeders"
+                type="number"
+                min="0"
+                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Toggles (full width) -->
+      <div class="border-t border-gray-800 pt-5 space-y-3">
+        <label class="flex items-center justify-between cursor-pointer group py-1">
+          <span class="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">Keep torrents with zero leechers</span>
+          <button
+            type="button"
+            role="switch"
+            :aria-checked="form.keepTorrentWithZeroLeechers"
+            @click="form.keepTorrentWithZeroLeechers = !form.keepTorrentWithZeroLeechers"
+            class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none"
+            :class="form.keepTorrentWithZeroLeechers ? 'bg-emerald-600' : 'bg-gray-700'"
+          >
+            <span
+              class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform duration-200"
+              :class="form.keepTorrentWithZeroLeechers ? 'translate-x-[18px]' : 'translate-x-[3px]'"
+            />
+          </button>
+        </label>
+
+        <label class="flex items-center justify-between cursor-pointer group py-1">
+          <span class="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">Skip upload if no peers</span>
+          <button
+            type="button"
+            role="switch"
+            :aria-checked="form.skipIfNoPeers"
+            @click="form.skipIfNoPeers = !form.skipIfNoPeers"
+            class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none"
+            :class="form.skipIfNoPeers ? 'bg-emerald-600' : 'bg-gray-700'"
+          >
+            <span
+              class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform duration-200"
+              :class="form.skipIfNoPeers ? 'translate-x-[18px]' : 'translate-x-[3px]'"
+            />
+          </button>
+        </label>
+
+      </div>
+
+      <!-- Save -->
+      <div class="border-t border-gray-800 pt-5 flex items-center gap-3">
         <button
           @click="save"
           :disabled="saving || !formReady || !!speedWarning || !!seedWarning"
-          class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded font-medium text-sm transition-colors"
+          class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg font-medium text-sm transition-colors"
         >
           {{ saving ? 'Saving...' : 'Save Settings' }}
         </button>
-        <span
-          v-if="saveMessage"
-          class="text-sm"
-          :class="saveMessage.error ? 'text-red-400' : 'text-emerald-400'"
+        <Transition
+          enter-active-class="transition-opacity duration-200"
+          leave-active-class="transition-opacity duration-200"
+          enter-from-class="opacity-0"
+          leave-to-class="opacity-0"
         >
-          {{ saveMessage.text }}
-        </span>
+          <span
+            v-if="saveMessage"
+            class="text-sm"
+            :class="saveMessage.error ? 'text-red-400' : 'text-emerald-400'"
+          >
+            {{ saveMessage.text }}
+          </span>
+        </Transition>
       </div>
     </div>
   </div>

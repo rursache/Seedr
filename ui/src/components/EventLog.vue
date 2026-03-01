@@ -54,14 +54,13 @@ function eventSummary(event: { type: string; data: any }): string {
 </script>
 
 <template>
-  <div class="bg-gray-900 rounded-lg border border-gray-800">
+  <div class="bg-gray-900 rounded-xl border border-gray-800">
     <button
       @click="expanded = !expanded"
       class="w-full px-4 py-3 flex items-center justify-between text-left"
-      :class="expanded ? 'border-b border-gray-800' : ''"
     >
       <div class="flex items-center gap-3">
-        <span class="text-gray-500 text-xs transition-transform" :class="expanded ? 'rotate-90' : ''">&#9654;</span>
+        <span class="text-gray-500 text-xs transition-transform duration-200" :class="expanded ? 'rotate-90' : ''">&#9654;</span>
         <h2 class="text-sm font-semibold text-gray-300">Event Log</h2>
         <span class="text-xs text-gray-600">({{ store.events.length }})</span>
       </div>
@@ -71,7 +70,7 @@ function eventSummary(event: { type: string; data: any }): string {
         v-if="expanded"
         v-model="filter"
         @click.stop
-        class="bg-gray-800 border border-gray-700 text-gray-400 text-xs rounded px-2 py-1 focus:outline-none focus:border-gray-600"
+        class="bg-gray-800 border border-gray-700 text-gray-400 text-xs rounded-lg px-2 py-1 focus:outline-none focus:border-gray-600"
       >
         <option value="warnings">Warnings & Errors</option>
         <option value="success">Success</option>
@@ -79,18 +78,25 @@ function eventSummary(event: { type: string; data: any }): string {
       </select>
     </button>
 
-    <div v-if="expanded" class="max-h-48 overflow-y-auto">
-      <div v-if="filteredEvents.length === 0" class="px-4 py-4 text-center text-gray-600 text-xs">
-        No matching events
-      </div>
-      <div
-        v-for="event in filteredEvents"
-        :key="event.id"
-        class="px-4 py-1.5 text-xs font-mono flex items-center gap-3 hover:bg-gray-800/50"
-      >
-        <span class="text-gray-600 shrink-0">{{ formatTime(event.time) }}</span>
-        <span :class="eventColor(event.type)" class="shrink-0">{{ event.type }}</span>
-        <span class="text-gray-500 truncate">{{ eventSummary(event) }}</span>
+    <div
+      class="grid transition-[grid-template-rows] duration-200 ease-out"
+      :class="expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'"
+    >
+      <div class="overflow-hidden min-h-0">
+        <div class="border-t border-gray-800 max-h-48 overflow-y-auto">
+          <div v-if="filteredEvents.length === 0" class="px-4 py-4 text-center text-gray-600 text-xs">
+            No matching events
+          </div>
+          <div
+            v-for="event in filteredEvents"
+            :key="event.id"
+            class="px-4 py-1.5 text-xs font-mono flex items-center gap-3 hover:bg-gray-800/50"
+          >
+            <span class="text-gray-600 shrink-0">{{ formatTime(event.time) }}</span>
+            <span :class="eventColor(event.type)" class="shrink-0">{{ event.type }}</span>
+            <span class="text-gray-500 truncate">{{ eventSummary(event) }}</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>

@@ -113,7 +113,7 @@ onUnmounted(() => {
               v-if="store.isSeeding"
               @click="store.stopSeeding()"
               :disabled="store.actionPending"
-              class="px-3 py-1.5 bg-red-500/50 hover:bg-red-500/70 disabled:opacity-50 text-white rounded-md text-xs font-medium transition-colors"
+              class="px-3 py-1.5 bg-red-500/50 hover:bg-red-500/70 disabled:opacity-50 text-white rounded-lg text-xs font-medium transition-colors"
             >
               {{ store.actionPending ? 'Stopping...' : 'Stop Seeding' }}
             </button>
@@ -121,7 +121,7 @@ onUnmounted(() => {
               v-else
               @click="store.startSeeding()"
               :disabled="store.actionPending || store.torrents.length === 0"
-              class="px-3 py-1.5 bg-emerald-600/90 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-md text-xs font-medium transition-colors"
+              class="px-3 py-1.5 bg-emerald-600/90 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-xs font-medium transition-colors"
             >
               {{ store.actionPending ? 'Starting...' : 'Start Seeding' }}
             </button>
@@ -135,7 +135,7 @@ onUnmounted(() => {
             <!-- Settings -->
             <button
               @click="showSettings = true"
-              class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 hover:text-white rounded-md text-xs font-medium transition-colors"
+              class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 hover:text-white rounded-lg text-xs font-medium transition-colors"
             >
               Settings
             </button>
@@ -189,26 +189,41 @@ onUnmounted(() => {
 
     <!-- Settings Modal -->
     <Teleport to="body">
-      <div
-        v-if="showSettings"
-        class="fixed inset-0 z-50 flex items-start justify-center pt-16"
+      <Transition
+        enter-active-class="transition-all duration-200 ease-out"
+        leave-active-class="transition-all duration-150 ease-in"
+        enter-from-class="opacity-0"
+        leave-to-class="opacity-0"
       >
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="showSettings = false"></div>
-        <div class="relative bg-gray-950 border border-gray-800 rounded-lg shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto mx-4">
-          <div class="sticky top-0 bg-gray-950/95 backdrop-blur-sm border-b border-gray-800 px-6 py-4 flex items-center justify-between">
-            <h2 class="text-lg font-bold text-white">Settings</h2>
-            <button
-              @click="showSettings = false"
-              class="text-gray-500 hover:text-white transition-colors text-xl leading-none"
-            >
-              &times;
-            </button>
-          </div>
-          <div class="p-6">
-            <Settings />
-          </div>
+        <div
+          v-if="showSettings"
+          class="fixed inset-0 z-50 flex items-start justify-center pt-[8vh]"
+        >
+          <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="showSettings = false"></div>
+          <Transition
+            appear
+            enter-active-class="transition-all duration-200 ease-out"
+            leave-active-class="transition-all duration-150 ease-in"
+            enter-from-class="opacity-0 scale-95 translate-y-4"
+            leave-to-class="opacity-0 scale-95 translate-y-4"
+          >
+            <div class="relative bg-gray-950 border border-gray-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[84vh] overflow-y-auto mx-4">
+              <div class="sticky top-0 z-10 bg-gray-950/95 backdrop-blur-sm border-b border-gray-800 px-6 py-4 flex items-center justify-between">
+                <h2 class="text-lg font-bold text-white">Settings</h2>
+                <button
+                  @click="showSettings = false"
+                  class="text-gray-500 hover:text-white transition-colors text-xl leading-none p-1"
+                >
+                  &times;
+                </button>
+              </div>
+              <div class="p-6">
+                <Settings />
+              </div>
+            </div>
+          </Transition>
         </div>
-      </div>
+      </Transition>
     </Teleport>
   </div>
 </template>

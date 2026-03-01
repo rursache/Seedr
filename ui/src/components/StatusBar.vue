@@ -41,7 +41,7 @@ const ipDisplay = computed(() => {
 
 <template>
   <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-    <div class="bg-gray-900 rounded-lg border border-gray-800 p-4">
+    <div class="bg-gray-900 rounded-xl border border-gray-800 p-4">
       <div class="text-xs text-gray-500 uppercase tracking-wide">Status</div>
       <div
         class="mt-1 text-lg font-semibold"
@@ -51,12 +51,12 @@ const ipDisplay = computed(() => {
       </div>
     </div>
 
-    <div class="bg-gray-900 rounded-lg border border-gray-800 p-4">
+    <div class="bg-gray-900 rounded-xl border border-gray-800 p-4">
       <div class="text-xs text-gray-500 uppercase tracking-wide">Upload Speed</div>
       <div class="mt-1 text-lg font-semibold text-blue-400">{{ speedDisplay }}</div>
     </div>
 
-    <div class="bg-gray-900 rounded-lg border border-gray-800 p-4">
+    <div class="bg-gray-900 rounded-xl border border-gray-800 p-4">
       <div class="text-xs text-gray-500 uppercase tracking-wide">Torrents</div>
       <div class="mt-1 text-lg font-semibold text-white">
         {{ store.seedingCount }} <span class="text-gray-600 text-sm font-normal">seeding</span>
@@ -64,7 +64,7 @@ const ipDisplay = computed(() => {
       </div>
     </div>
 
-    <div class="bg-gray-900 rounded-lg border border-gray-800 p-4">
+    <div class="bg-gray-900 rounded-xl border border-gray-800 p-4">
       <div class="text-xs text-gray-500 uppercase tracking-wide">External IP</div>
       <div class="mt-1 text-sm font-mono text-gray-300 truncate">
         {{ ipDisplay }}
