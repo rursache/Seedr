@@ -450,12 +450,15 @@ export class SeedManager extends EventEmitter {
 
     // Schedule next announce (unless stopped)
     if (event !== 'stopped' && torrent.active) {
-      // Clamp interval to sane range: 60s minimum, 1 day maximum
-      const clampedInterval = Math.max(60, Math.min(torrent.interval, 86400));
-      const intervalMs = clampedInterval * 1000;
-      // Backoff on failures
-      const backoff = result.success ? 1 : Math.min(Math.pow(2, torrent.consecutiveFailures), 32);
-      this.scheduler.schedule(infoHash, intervalMs * backoff);
+      if (result.success) {
+        // Clamp interval to sane range: 60s minimum, 1 day maximum
+        const clampedInterval = Math.max(60, Math.min(torrent.interval, 86400));
+        this.scheduler.schedule(infoHash, clampedInterval * 1000);
+      } else {
+        // Short retry with exponential backoff: 30s, 60s, 120s, 240s, 480s (cap)
+        const retryDelay = Math.min(30000 * Math.pow(2, torrent.consecutiveFailures - 1), 480000);
+        this.scheduler.schedule(infoHash, retryDelay);
+      }
     }
   }
 
