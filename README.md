@@ -6,7 +6,7 @@ BitTorrent ratio master — emulates BT clients and reports simulated upload to 
 
 Inspired by [JOAL](https://github.com/anthonyraymond/joal), built from scratch with TypeScript and Vue.js.
 
-![screenshot](https://i.imgur.com/AwkHtsS.jpeg)
+![screenshot](https://i.imgur.com/EX26wMD.jpeg)
 
 ## How It Works
 
