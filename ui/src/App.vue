@@ -105,7 +105,7 @@ onUnmounted(() => {
       <div class="max-w-7xl mx-auto px-4">
         <div class="flex items-center justify-between h-14">
           <!-- Left: Logo + connection status -->
-          <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2 md:gap-4">
             <img src="/favicon.svg" alt="Seedr" class="h-6 w-6" />
             <span class="text-lg font-bold text-white tracking-tight">Seedr</span>
             <span
@@ -113,28 +113,30 @@ onUnmounted(() => {
               :class="store.connected ? 'text-emerald-400/70' : 'text-red-400/70'"
             >
               <span class="w-1.5 h-1.5 rounded-full" :class="store.connected ? 'bg-emerald-400' : 'bg-red-400'"></span>
-              {{ store.connected ? 'Connected' : 'Disconnected' }}
+              <span class="hidden sm:inline">{{ store.connected ? 'Connected' : 'Disconnected' }}</span>
             </span>
           </div>
 
           <!-- Right: Actions -->
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1.5 md:gap-2">
             <!-- Start / Stop Seeding -->
             <button
               v-if="store.isSeeding"
               @click="store.stopSeeding()"
               :disabled="store.actionPending"
-              class="px-3 py-1.5 bg-red-500/50 hover:bg-red-500/70 disabled:opacity-50 text-white rounded-lg text-xs font-medium transition-colors"
+              class="px-2 md:px-3 py-1.5 bg-red-500/50 hover:bg-red-500/70 disabled:opacity-50 text-white rounded-lg text-xs font-medium transition-colors"
             >
-              {{ store.actionPending ? 'Stopping...' : 'Stop Seeding' }}
+              <span class="hidden md:inline">{{ store.actionPending ? 'Stopping...' : 'Stop Seeding' }}</span>
+              <span class="md:hidden">{{ store.actionPending ? '...' : 'Stop' }}</span>
             </button>
             <button
               v-else
               @click="store.startSeeding()"
               :disabled="store.actionPending || store.torrents.length === 0"
-              class="px-3 py-1.5 bg-emerald-600/90 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-xs font-medium transition-colors"
+              class="px-2 md:px-3 py-1.5 bg-emerald-600/90 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-xs font-medium transition-colors"
             >
-              {{ store.actionPending ? 'Starting...' : 'Start Seeding' }}
+              <span class="hidden md:inline">{{ store.actionPending ? 'Starting...' : 'Start Seeding' }}</span>
+              <span class="md:hidden">{{ store.actionPending ? '...' : 'Start' }}</span>
             </button>
 
             <!-- Upload Torrent -->
@@ -167,9 +169,19 @@ onUnmounted(() => {
             <!-- Settings -->
             <button
               @click="showSettings = true"
-              class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 hover:text-white rounded-lg text-xs font-medium transition-colors"
+              class="hidden md:block px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 hover:text-white rounded-lg text-xs font-medium transition-colors"
             >
               Settings
+            </button>
+            <button
+              @click="showSettings = true"
+              class="md:hidden w-[30px] h-[30px] flex items-center justify-center bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-400 hover:text-white rounded-lg transition-colors"
+              title="Settings"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
             </button>
           </div>
         </div>

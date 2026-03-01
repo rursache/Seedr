@@ -50,19 +50,19 @@ const ipDisplay = computed(() => {
 </script>
 
 <template>
-  <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-    <div class="bg-gray-900 rounded-xl border border-gray-800 p-4">
+  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+    <div class="bg-gray-900 rounded-xl border border-gray-800 p-3 md:p-4">
       <div class="text-xs text-gray-500 uppercase tracking-wide">Status</div>
       <div class="mt-1 flex items-baseline gap-2">
-        <span class="text-lg font-semibold" :class="statusClass">{{ statusLabel }}</span>
+        <span class="text-base md:text-lg font-semibold" :class="statusClass">{{ statusLabel }}</span>
         <span class="text-gray-700">&middot;</span>
-        <span class="text-lg font-semibold text-blue-400">{{ speedDisplay }}</span>
+        <span class="text-base md:text-lg font-semibold text-blue-400">{{ speedDisplay }}</span>
       </div>
     </div>
 
-    <div class="bg-gray-900 rounded-xl border border-gray-800 p-4">
+    <div class="bg-gray-900 rounded-xl border border-gray-800 p-3 md:p-4">
       <div class="text-xs text-gray-500 uppercase tracking-wide">Torrents</div>
-      <div class="mt-1 text-lg font-semibold text-white flex items-baseline flex-wrap gap-x-1">
+      <div class="mt-1 text-base md:text-lg font-semibold text-white flex items-baseline flex-wrap gap-x-1">
         <template v-for="(seg, i) in torrentSegments" :key="seg.label">
           <span v-if="i > 0" class="text-gray-700">,</span>
           <span>{{ seg.count }}</span>
@@ -74,7 +74,7 @@ const ipDisplay = computed(() => {
       </div>
     </div>
 
-    <div class="col-span-2 md:col-span-1 bg-gray-900 rounded-xl border border-gray-800 p-4">
+    <div class="sm:col-span-2 md:col-span-1 bg-gray-900 rounded-xl border border-gray-800 p-3 md:p-4">
       <div class="flex items-center justify-between gap-2">
         <div class="text-xs text-gray-500 uppercase tracking-wide">External IP</div>
         <div class="text-xs text-gray-500 flex items-center gap-2">
@@ -121,9 +121,9 @@ const ipDisplay = computed(() => {
         </div>
       </div>
       <div class="mt-1 flex items-baseline justify-between">
-        <div class="text-lg font-semibold text-gray-300 truncate">{{ ipDisplay }}</div>
-        <div v-if="store.status?.running" class="text-lg font-semibold text-gray-300 shrink-0">{{ store.status.port }}</div>
-        <div v-else class="text-lg font-semibold text-gray-500 shrink-0">—</div>
+        <div class="text-base md:text-lg font-semibold text-gray-300 truncate">{{ ipDisplay }}</div>
+        <div v-if="store.status?.running" class="text-base md:text-lg font-semibold text-gray-300 shrink-0">{{ store.status.port }}</div>
+        <div v-else class="text-base md:text-lg font-semibold text-gray-500 shrink-0">—</div>
       </div>
     </div>
   </div>
