@@ -81,8 +81,9 @@ export class BandwidthDispatcher extends EventEmitter {
 
   /**
    * Compute weight for a torrent based on peer counts.
-   * Formula: sqrt(leechers / (seeders + leechers)) * leechers
-   * Uses sqrt instead of squaring to avoid extreme skew.
+   * Formula: log(1 + leechers) * sqrt(leechers / (seeders + leechers))
+   * Uses log to compress the leecher count and sqrt for the ratio,
+   * giving popular torrents more bandwidth without extreme skew.
    */
   private computeWeight(info: TorrentBandwidthInfo): number {
     if (!info.eligible || !info.active) return 0;
@@ -90,7 +91,7 @@ export class BandwidthDispatcher extends EventEmitter {
     if (total === 0 || info.leechers === 0) return 0;
 
     const ratio = info.leechers / total;
-    return Math.sqrt(ratio) * info.leechers;
+    return Math.log(1 + info.leechers) * Math.sqrt(ratio);
   }
 
   /**
