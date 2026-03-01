@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-PUID="${PUID:-0}"
-PGID="${PGID:-0}"
+PUID="${PUID:-1000}"
+PGID="${PGID:-1000}"
 
 # If PUID/PGID are set to non-root, create a user and run as that user
 if [ "$PUID" != "0" ] || [ "$PGID" != "0" ]; then
