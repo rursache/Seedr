@@ -15,6 +15,7 @@ interface TorrentInfo {
   completed: boolean;
   tracker: string;
   uploadRate?: number;
+  consecutiveFailures: number;
   addedIndex: number; // insertion order from backend
 }
 
@@ -96,6 +97,7 @@ export const useSeedrStore = defineStore('seedr', () => {
         completed: t.completed || false,
         tracker: t.currentTracker || '',
         uploadRate: t.uploadRate || 0,
+        consecutiveFailures: t.consecutiveFailures || 0,
         addedIndex: i,
       }));
     }
