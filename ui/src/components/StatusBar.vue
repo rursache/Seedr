@@ -50,20 +50,14 @@ const ipDisplay = computed(() => {
 </script>
 
 <template>
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+  <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
     <div class="bg-gray-900 rounded-xl border border-gray-800 p-4">
       <div class="text-xs text-gray-500 uppercase tracking-wide">Status</div>
-      <div
-        class="mt-1 text-lg font-semibold"
-        :class="statusClass"
-      >
-        {{ statusLabel }}
+      <div class="mt-1 flex items-baseline gap-2">
+        <span class="text-lg font-semibold" :class="statusClass">{{ statusLabel }}</span>
+        <span class="text-gray-700">&middot;</span>
+        <span class="text-lg font-semibold text-blue-400">{{ speedDisplay }}</span>
       </div>
-    </div>
-
-    <div class="bg-gray-900 rounded-xl border border-gray-800 p-4">
-      <div class="text-xs text-gray-500 uppercase tracking-wide">Upload Speed</div>
-      <div class="mt-1 text-lg font-semibold text-blue-400">{{ speedDisplay }}</div>
     </div>
 
     <div class="bg-gray-900 rounded-xl border border-gray-800 p-4">
@@ -80,7 +74,7 @@ const ipDisplay = computed(() => {
       </div>
     </div>
 
-    <div class="bg-gray-900 rounded-xl border border-gray-800 p-4">
+    <div class="col-span-2 md:col-span-1 bg-gray-900 rounded-xl border border-gray-800 p-4">
       <div class="flex items-center justify-between gap-2">
         <div class="text-xs text-gray-500 uppercase tracking-wide">External IP</div>
         <div class="text-xs text-gray-500 flex items-center gap-2">
