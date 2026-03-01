@@ -175,10 +175,14 @@ export class SeedManager extends EventEmitter {
 
   private startFileWatcher(): void {
     const watchPath = join(TORRENTS_DIR, '*.torrent');
+    const inContainer = existsSync('/.dockerenv') || !!process.env['container'];
     this.fileWatcher = chokidarWatch(watchPath, {
       ignoreInitial: true,
-      awaitWriteFinish: { stabilityThreshold: 2000, pollInterval: 200 },
+      usePolling: inContainer,
+      interval: 5000,
+      awaitWriteFinish: { stabilityThreshold: 2000, pollInterval: 500 },
     });
+    logger.debug({ inContainer }, 'File watcher started');
 
     this.fileWatcher.on('add', (filePath: string) => {
       logger.info({ file: basename(filePath) }, 'Torrent file detected');
@@ -338,10 +342,11 @@ export class SeedManager extends EventEmitter {
     if (!torrent || !emState) return;
 
     // Calculate upload delta from bandwidth dispatcher
+    // Include accumulated bytes for regular and stopped announces (flush remaining progress)
     let uploadDelta = 0;
-    if (event !== 'started' && event !== 'stopped') {
+    if (event !== 'started') {
       const eligible = this.isTorrentEligible(torrent);
-      if (eligible) {
+      if (eligible || event === 'stopped') {
         uploadDelta = this.bandwidth.consumeAccumulated(infoHash);
       }
     }

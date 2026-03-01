@@ -112,7 +112,7 @@ onUnmounted(() => {
               v-if="store.isSeeding"
               @click="store.stopSeeding()"
               :disabled="store.actionPending"
-              class="px-3 py-1.5 bg-red-600/90 hover:bg-red-500 disabled:opacity-50 text-white rounded-md text-xs font-medium transition-colors"
+              class="px-3 py-1.5 bg-red-500/50 hover:bg-red-500/70 disabled:opacity-50 text-white rounded-md text-xs font-medium transition-colors"
             >
               {{ store.actionPending ? 'Stopping...' : 'Stop Seeding' }}
             </button>
