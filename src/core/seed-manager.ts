@@ -26,6 +26,7 @@ import { BandwidthDispatcher } from './bandwidth-dispatcher.js';
 import { Scheduler } from './scheduler.js';
 import { performAnnounce } from './announcer.js';
 import { ConnectionHandler } from './connection-handler.js';
+import { checkPortReachable, type PortCheckResult } from '../utils/port-checker.js';
 import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('seed-manager');
@@ -49,6 +50,7 @@ export class SeedManager extends EventEmitter {
   private fileWatcher: FSWatcher | null = null;
   private startTime = 0;
   private announceLocks = new Map<string, Promise<void>>(); // per-torrent announce lock
+  private portCheckResult: { result: PortCheckResult | null; error: string | null; checking: boolean } = { result: null, error: null, checking: false };
 
   async init(): Promise<void> {
     this.config = loadConfig();
@@ -115,6 +117,28 @@ export class SeedManager extends EventEmitter {
 
     this.emit('started');
     logger.info({ port: this.connection.port, ip: this.connection.externalIp }, 'Seeding started');
+
+    // Run port check in background after start
+    this.runPortCheck();
+  }
+
+  private async runPortCheck(): Promise<void> {
+    const ip = this.connection.externalIp;
+    const port = this.connection.port;
+    if (!ip || port <= 0) return;
+
+    this.portCheckResult = { result: null, error: null, checking: true };
+    try {
+      const result = await checkPortReachable(ip, port);
+      this.portCheckResult = { result, error: null, checking: false };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.portCheckResult = { result: null, error: msg, checking: false };
+    }
+  }
+
+  async recheckPort(): Promise<void> {
+    await this.runPortCheck();
   }
 
   async stop(): Promise<void> {
@@ -498,6 +522,7 @@ export class SeedManager extends EventEmitter {
       await this.connection.stop();
       await this.connection.start(this.config.port);
       logger.info({ port: this.connection.port }, 'Port changed — connection handler restarted');
+      this.runPortCheck();
     }
 
     // If simultaneousSeed changed, activate/deactivate torrents accordingly
@@ -588,6 +613,7 @@ export class SeedManager extends EventEmitter {
       actualUploadRate: this.bandwidth.getActualRate(),
       torrents: torrentStates,
       uptime: this.running ? Date.now() - this.startTime : 0,
+      portCheck: this.portCheckResult,
     };
   }
 

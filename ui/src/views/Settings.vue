@@ -6,7 +6,7 @@ const store = useSeedrStore();
 
 const form = ref({
   client: '',
-  port: 0,
+  port: 49152,
   minUploadRate: 100,
   maxUploadRate: 500,
   simultaneousSeed: 10,
@@ -86,13 +86,14 @@ async function save() {
       <!-- Port -->
       <div>
         <label class="block text-sm font-medium text-gray-300 mb-1">
-          Port <span class="text-gray-500">(0 = random 49152-65534)</span>
+          Port <span class="text-gray-500">(0 = random, default 49152)</span>
         </label>
         <input
           v-model.number="form.port"
           type="number"
           min="0"
           max="65535"
+          placeholder="49152"
           class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
         />
       </div>

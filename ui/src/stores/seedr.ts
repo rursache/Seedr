@@ -30,6 +30,12 @@ interface AppConfig {
   uploadRatioTarget: number;
 }
 
+interface PortCheckStatus {
+  checking: boolean;
+  result: { reachable: boolean; nodes: Array<{ location: string; success: boolean; time?: number; error?: string }> } | null;
+  error: string | null;
+}
+
 interface SeedrState {
   running: boolean;
   externalIp: string | null;
@@ -40,6 +46,7 @@ interface SeedrState {
   actualUploadRate: number;
   torrents: any[];
   uptime: number;
+  portCheck: PortCheckStatus;
 }
 
 export interface SeedrEvent {
@@ -60,13 +67,6 @@ export const useSeedrStore = defineStore('seedr', () => {
   const events = ref<SeedrEvent[]>([]);
   const actionPending = ref(false);
 
-  // Port reachability check
-  const portCheck = ref<{
-    checking: boolean;
-    result: { reachable: boolean; nodes: Array<{ location: string; success: boolean; time?: number; error?: string }> } | null;
-    error: string | null;
-  }>({ checking: false, result: null, error: null });
-
   const { socket, connected } = useWebSocket();
 
   function addEvent(type: string, data: any) {
@@ -75,26 +75,12 @@ export const useSeedrStore = defineStore('seedr', () => {
   }
 
   async function checkPort() {
-    portCheck.value = { checking: true, result: null, error: null };
     try {
-      const res = await fetch('/api/control/port-check');
-      if (!res.ok) {
-        const data = await res.json();
-        portCheck.value = { checking: false, result: null, error: data.error || `HTTP ${res.status}` };
-        return;
-      }
-      const result = await res.json();
-      portCheck.value = { checking: false, result, error: null };
-    } catch {
-      portCheck.value = { checking: false, result: null, error: 'Network error' };
-    }
+      await fetch('/api/control/port-check', { method: 'POST' });
+    } catch { /* state broadcast will update UI */ }
   }
 
-  // Listen for WebSocket events
-  let lastKnownPort = 0;
-
   socket.on('state', (data: SeedrState) => {
-    const prevRunning = status.value?.running;
     status.value = data;
     if (data.torrents) {
       torrents.value = data.torrents.map((t: any, i: number) => ({
@@ -114,16 +100,6 @@ export const useSeedrStore = defineStore('seedr', () => {
       }));
     }
     actionPending.value = false;
-
-    // Auto-check port when engine transitions to running, or port changes while running
-    if (data.running && data.externalIp && data.port > 0) {
-      const portChanged = lastKnownPort > 0 && data.port !== lastKnownPort;
-      const justStarted = prevRunning === false && data.running;
-      lastKnownPort = data.port;
-      if ((justStarted || portChanged) && !portCheck.value.checking) {
-        checkPort();
-      }
-    }
   });
 
   socket.on('started', () => {
@@ -146,13 +122,11 @@ export const useSeedrStore = defineStore('seedr', () => {
   socket.on('stopped', () => {
     addEvent('stopped', {});
     actionPending.value = false;
-    portCheck.value = { checking: false, result: null, error: null };
   });
 
   socket.on('disconnect', () => {
     status.value = null;
     torrents.value = [];
-    portCheck.value = { checking: false, result: null, error: null };
   });
 
   // REST API calls
@@ -262,6 +236,10 @@ export const useSeedrStore = defineStore('seedr', () => {
 
   const isSeeding = computed(() =>
     !!(status.value?.running && seedingCount.value > 0)
+  );
+
+  const portCheck = computed<PortCheckStatus>(() =>
+    status.value?.portCheck || { checking: false, result: null, error: null }
   );
 
   return {

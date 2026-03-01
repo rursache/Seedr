@@ -176,6 +176,12 @@ export interface TorrentRuntimeState {
   completed: boolean; // upload ratio target reached — still announces but no bandwidth
 }
 
+export interface PortCheckStatus {
+  checking: boolean;
+  result: { reachable: boolean; nodes: Array<{ location: string; success: boolean; time?: number; error?: string }> } | null;
+  error: string | null;
+}
+
 export interface SeedrStatus {
   running: boolean;
   externalIp: string | null;
@@ -186,4 +192,5 @@ export interface SeedrStatus {
   actualUploadRate: number; // real throughput in bytes/s from last tick
   torrents: TorrentRuntimeState[];
   uptime: number;
+  portCheck: PortCheckStatus;
 }

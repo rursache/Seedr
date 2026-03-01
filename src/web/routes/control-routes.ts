@@ -1,6 +1,5 @@
 import type { FastifyInstance } from 'fastify';
 import type { SeedManager } from '../../core/seed-manager.js';
-import { checkPortReachable } from '../../utils/port-checker.js';
 
 export function registerControlRoutes(server: FastifyInstance, seedManager: SeedManager): void {
   server.post('/api/control/start', async () => {
@@ -21,21 +20,14 @@ export function registerControlRoutes(server: FastifyInstance, seedManager: Seed
     return seedManager.getStatus();
   });
 
-  server.get('/api/control/port-check', async (_request, reply) => {
-    const status = seedManager.getStatus();
-
-    if (!status.running || !status.externalIp) {
+  server.post('/api/control/port-check', async (_request, reply) => {
+    if (!seedManager.isRunning()) {
       return reply.status(400).send({
-        error: 'Engine must be running with a resolved external IP to check port',
+        error: 'Engine must be running to check port',
       });
     }
 
-    try {
-      const result = await checkPortReachable(status.externalIp, status.port);
-      return result;
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      return reply.status(502).send({ error: msg });
-    }
+    await seedManager.recheckPort();
+    return seedManager.getStatus().portCheck;
   });
 }

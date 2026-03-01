@@ -8,8 +8,12 @@ const store = useSeedrStore();
 type SortField = 'name' | 'added';
 type SortDir = 'asc' | 'desc';
 
-const sortField = ref<SortField>('name');
-const sortDir = ref<SortDir>('asc');
+const savedField = localStorage.getItem('sortField') as SortField | null;
+const savedDir = localStorage.getItem('sortDir') as SortDir | null;
+const sortField = ref<SortField>(savedField === 'name' || savedField === 'added' ? savedField : 'name');
+const sortDir = ref<SortDir>(savedDir === 'asc' || savedDir === 'desc' ? savedDir : 'asc');
+if (!savedField) localStorage.setItem('sortField', sortField.value);
+if (!savedDir) localStorage.setItem('sortDir', sortDir.value);
 
 function toggleSort(field: SortField) {
   if (sortField.value === field) {
@@ -18,6 +22,8 @@ function toggleSort(field: SortField) {
     sortField.value = field;
     sortDir.value = 'asc';
   }
+  localStorage.setItem('sortField', sortField.value);
+  localStorage.setItem('sortDir', sortDir.value);
 }
 
 const sortedTorrents = computed(() => {
