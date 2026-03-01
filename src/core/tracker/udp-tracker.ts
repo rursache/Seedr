@@ -178,6 +178,9 @@ export async function udpAnnounce(
   logger.debug({ host, port: trackerPort }, 'UDP announce');
 
   const socket = dgram.createSocket('udp4');
+  socket.on('error', (err) => {
+    logger.debug({ err: err.message }, 'UDP socket error');
+  });
 
   try {
     // Check connection cache

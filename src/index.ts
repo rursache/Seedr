@@ -4,6 +4,15 @@ import { createLogger } from './utils/logger.js';
 
 const logger = createLogger('main');
 
+process.on('unhandledRejection', (reason) => {
+  logger.error({ reason }, 'Unhandled promise rejection');
+});
+
+process.on('uncaughtException', (err) => {
+  logger.fatal({ err }, 'Uncaught exception');
+  process.exit(1);
+});
+
 async function main(): Promise<void> {
   logger.info('Starting Seedr...');
 

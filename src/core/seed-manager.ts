@@ -185,6 +185,10 @@ export class SeedManager extends EventEmitter {
       this.addTorrent(filePath);
     });
 
+    this.fileWatcher.on('error', (err) => {
+      logger.error({ err }, 'File watcher error');
+    });
+
     this.fileWatcher.on('unlink', (filePath: string) => {
       // Find and remove the torrent by file path
       for (const [hash, torrent] of this.torrents) {

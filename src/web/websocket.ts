@@ -53,6 +53,10 @@ export function setupWebSocket(io: Server, seedManager: SeedManager): void {
   io.on('connection', (socket) => {
     logger.debug({ id: socket.id }, 'Client connected');
 
+    socket.on('error', (err) => {
+      logger.debug({ id: socket.id, err: err.message }, 'Socket error');
+    });
+
     // Send initial state
     socket.emit('state', seedManager.getStatus());
 

@@ -49,8 +49,14 @@ export class ConnectionHandler {
 
       try {
         await new Promise<void>((resolve, reject) => {
-          this.server!.on('error', reject);
+          const onError = (err: Error) => reject(err);
+          this.server!.on('error', onError);
           this.server!.listen(port, () => {
+            // Replace one-time startup handler with persistent runtime handler
+            this.server!.removeListener('error', onError);
+            this.server!.on('error', (err) => {
+              logger.error({ err }, 'TCP server error');
+            });
             this._port = port;
             logger.info({ port }, 'TCP port bound');
             resolve();
