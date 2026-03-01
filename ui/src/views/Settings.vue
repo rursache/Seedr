@@ -115,11 +115,13 @@ async function save() {
 
       <!-- Simultaneous Seeds -->
       <div>
-        <label class="block text-sm font-medium text-gray-300 mb-1">Simultaneous Seeds</label>
+        <label class="block text-sm font-medium text-gray-300 mb-1">
+          Simultaneous Seeds <span class="text-gray-500">(-1 = all)</span>
+        </label>
         <input
           v-model.number="form.simultaneousSeed"
           type="number"
-          min="1"
+          min="-1"
           class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
         />
       </div>

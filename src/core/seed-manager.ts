@@ -198,9 +198,9 @@ export class SeedManager extends EventEmitter {
         return false;
       }
 
-      // Check simultaneous seed limit
+      // Check simultaneous seed limit (-1 = unlimited)
       const activeCount = [...this.torrents.values()].filter((t) => t.active).length;
-      const active = activeCount < this.config.simultaneousSeed;
+      const active = this.config.simultaneousSeed === -1 || activeCount < this.config.simultaneousSeed;
 
       // Restore or create seed state
       const seedState: TorrentSeedState = this.state.torrents[hexHash] || {
@@ -370,6 +370,18 @@ export class SeedManager extends EventEmitter {
         leechers: result.response.leechers,
         uploaded: torrent.seedState.uploaded,
       });
+
+      // Check upload ratio target
+      if (this.hasReachedRatioTarget(torrent)) {
+        this.deactivateTorrent(infoHash, 'Upload ratio target reached');
+        return;
+      }
+
+      // Check keepTorrentWithZeroLeechers
+      if (!this.config.keepTorrentWithZeroLeechers && result.response.leechers === 0) {
+        this.deactivateTorrent(infoHash, 'No leechers');
+        return;
+      }
     } else {
       // Failed announce — not seeding, not eligible for bandwidth
       torrent.seeding = false;
@@ -403,6 +415,36 @@ export class SeedManager extends EventEmitter {
     }
 
     return true;
+  }
+
+  /**
+   * Check if a torrent has reached its upload ratio target.
+   * Returns true if the torrent should be deactivated.
+   */
+  private hasReachedRatioTarget(torrent: TorrentRuntimeState): boolean {
+    if (this.config.uploadRatioTarget <= 0) return false; // -1 = unlimited
+    if (torrent.meta.totalSize === 0) return false;
+    const ratio = torrent.seedState.uploaded / torrent.meta.totalSize;
+    return ratio >= this.config.uploadRatioTarget;
+  }
+
+  /**
+   * Deactivate a torrent and send a stopped announce.
+   */
+  private deactivateTorrent(infoHash: string, reason: string): void {
+    const torrent = this.torrents.get(infoHash);
+    if (!torrent || !torrent.active) return;
+
+    torrent.active = false;
+    torrent.seeding = false;
+    this.bandwidth.updateTorrent(infoHash, { active: false, eligible: false });
+    this.scheduler.remove(infoHash);
+
+    // Send stopped announce
+    this.announceForTorrent(infoHash, 'stopped').catch(() => {});
+
+    logger.info({ name: torrent.meta.name, reason }, 'Torrent deactivated');
+    this.emit('torrent:deactivated', { infoHash, name: torrent.meta.name, reason });
   }
 
   private persistState(): void {
@@ -459,19 +501,28 @@ export class SeedManager extends EventEmitter {
     if (updates.simultaneousSeed !== undefined) {
       const active = [...this.torrents.values()].filter((t) => t.active);
       const inactive = [...this.torrents.values()].filter((t) => !t.active);
+      const limit = this.config.simultaneousSeed;
 
-      if (active.length > this.config.simultaneousSeed) {
+      if (limit === -1) {
+        // Unlimited — activate all inactive torrents
+        for (const t of inactive) {
+          t.active = true;
+          const hash = infoHashToHex(t.meta.infoHash);
+          this.bandwidth.updateTorrent(hash, { active: true, eligible: true });
+          this.scheduler.schedule(hash, 0);
+        }
+      } else if (active.length > limit) {
         // Deactivate excess torrents
-        const excess = active.slice(this.config.simultaneousSeed);
+        const excess = active.slice(limit);
         for (const t of excess) {
           t.active = false;
           const hash = infoHashToHex(t.meta.infoHash);
           this.bandwidth.updateTorrent(hash, { active: false });
           this.scheduler.remove(hash);
         }
-      } else if (active.length < this.config.simultaneousSeed && inactive.length > 0) {
+      } else if (active.length < limit && inactive.length > 0) {
         // Activate more torrents
-        const slotsAvailable = this.config.simultaneousSeed - active.length;
+        const slotsAvailable = limit - active.length;
         const toActivate = inactive.slice(0, slotsAvailable);
         for (const t of toActivate) {
           t.active = true;

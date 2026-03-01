@@ -46,7 +46,7 @@ describe('Config', () => {
       expect(config.port).toBe(0);
       expect(config.minUploadRate).toBe(100);
       expect(config.maxUploadRate).toBe(500);
-      expect(config.simultaneousSeed).toBe(10);
+      expect(config.simultaneousSeed).toBe(-1);
       expect(config.keepTorrentWithZeroLeechers).toBe(true);
       expect(config.skipIfNoPeers).toBe(true);
       expect(config.minLeechers).toBe(0);
