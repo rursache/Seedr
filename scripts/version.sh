@@ -30,11 +30,22 @@ fi
 VERSION="${VERSION:-dev}"
 COMMIT="${COMMIT:-unknown}"
 
+# Detect tagged vs untagged version
+IS_TAG=$(echo "$VERSION" | grep -qE '^v[0-9]' && echo "yes" || echo "no")
+
+# For untagged versions without a commit hash, append one (e.g. master -> master@1a2bd3e)
+SHORT_COMMIT=$(echo "$COMMIT" | cut -c1-7)
+HAS_HASH=$(echo "$VERSION" | grep -q '@' && echo "yes" || echo "no")
+if [ "$IS_TAG" = "no" ] && [ "$HAS_HASH" = "no" ] && [ "$SHORT_COMMIT" != "unknown" ]; then
+  VERSION="${VERSION}@${SHORT_COMMIT}"
+fi
+
 cat > src/version.json <<EOF
 {
   "version": "$VERSION",
   "commit": "$COMMIT",
-  "buildDate": "$BUILD_DATE"
+  "buildDate": "$BUILD_DATE",
+  "isTagged": $( [ "$IS_TAG" = "yes" ] && echo "true" || echo "false" )
 }
 EOF
 

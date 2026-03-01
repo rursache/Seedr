@@ -65,6 +65,7 @@ interface VersionInfo {
   version: string;
   commit: string;
   buildDate: string;
+  isTagged: boolean;
 }
 
 export const useSeedrStore = defineStore('seedr', () => {

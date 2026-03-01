@@ -6,6 +6,7 @@ export interface VersionInfo {
   version: string;
   commit: string;
   buildDate: string;
+  isTagged: boolean;
 }
 
 let cached: VersionInfo | null = null;
@@ -24,12 +25,12 @@ export function getVersionInfo(): VersionInfo {
     for (const p of paths) {
       try {
         const data = JSON.parse(readFileSync(p, 'utf-8'));
-        cached = { version: data.version, commit: data.commit, buildDate: data.buildDate };
+        cached = { version: data.version, commit: data.commit, buildDate: data.buildDate, isTagged: data.isTagged ?? false };
         return cached;
       } catch { /* try next */ }
     }
   } catch { /* fallback below */ }
 
-  cached = { version: 'dev', commit: 'unknown', buildDate: 'unknown' };
+  cached = { version: 'dev', commit: 'unknown', buildDate: 'unknown', isTagged: false };
   return cached;
 }

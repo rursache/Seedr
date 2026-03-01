@@ -157,7 +157,7 @@ onUnmounted(() => {
 
     <!-- Version footer -->
     <footer v-if="store.versionInfo" class="max-w-7xl mx-auto px-4 pb-4 text-center">
-      <span class="text-xs text-gray-700">{{ store.versionInfo.version }} &middot; {{ store.versionInfo.buildDate }}</span>
+      <span class="text-xs text-gray-700">{{ store.versionInfo.version }}<template v-if="!store.versionInfo.isTagged"> &middot; {{ store.versionInfo.buildDate }}</template></span>
     </footer>
 
     <!-- Drop feedback toast -->
