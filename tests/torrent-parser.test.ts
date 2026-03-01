@@ -142,6 +142,77 @@ describe('torrent-parser', () => {
     expect(meta.isPrivate).toBe(true);
   });
 
+  it('should throw on non-existent file', () => {
+    expect(() => parseTorrentFile('/tmp/nonexistent-file.torrent')).toThrow();
+  });
+
+  it('should throw on invalid bencode data', () => {
+    const path = join(TEST_DIR, 'invalid.torrent');
+    writeFileSync(path, 'this is not bencoded data');
+    expect(() => parseTorrentFile(path)).toThrow();
+  });
+
+  it('should handle torrent with no announce-list (single tracker only)', () => {
+    const path = createTestTorrent({
+      name: 'single-tracker',
+      length: 100,
+      announce: 'http://only-tracker.example.com/announce',
+    });
+
+    const meta = parseTorrentFile(path);
+    expect(meta.trackers).toEqual(['http://only-tracker.example.com/announce']);
+  });
+
+  it('should deduplicate trackers', () => {
+    const path = createTestTorrent({
+      name: 'dedup-trackers',
+      length: 100,
+      announce: 'http://tracker.example.com/announce',
+      announceList: [
+        ['http://tracker.example.com/announce'],
+        ['http://tracker.example.com/announce'],
+      ],
+    });
+
+    const meta = parseTorrentFile(path);
+    expect(meta.trackers).toHaveLength(1);
+  });
+
+  it('should handle non-private torrents (isPrivate=false)', () => {
+    const path = createTestTorrent({
+      name: 'public-test',
+      length: 100,
+      announce: 'http://public.tracker/announce',
+    });
+
+    const meta = parseTorrentFile(path);
+    expect(meta.isPrivate).toBe(false);
+  });
+
+  it('should handle large multi-file torrent', () => {
+    const files = Array.from({ length: 50 }, (_, i) => ({
+      path: ['dir', `file${i}.bin`],
+      length: 1024 * (i + 1),
+    }));
+
+    const path = createTestTorrent({
+      name: 'large-multi',
+      files,
+      announce: 'http://tracker.example.com/announce',
+    });
+
+    const meta = parseTorrentFile(path);
+    expect(meta.files).toHaveLength(50);
+    expect(meta.totalSize).toBe(files.reduce((s, f) => s + f.length, 0));
+  });
+
+  it('infoHashToHex should produce 40-char lowercase hex string', () => {
+    const hash = Buffer.from('0123456789abcdef0123', 'utf-8');
+    const hex = infoHashToHex(hash);
+    expect(hex).toHaveLength(40);
+    expect(hex).toMatch(/^[0-9a-f]+$/);
+  });
+
   // Cleanup
   it('cleanup', () => {
     rmSync(TEST_DIR, { recursive: true, force: true });

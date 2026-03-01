@@ -1,6 +1,3 @@
-import { createGunzip, createInflate } from 'node:zlib';
-import { pipeline } from 'node:stream/promises';
-import { Readable } from 'node:stream';
 import bencode from 'bencode';
 import type { AnnounceResponse, PeerInfo, RequestHeader } from '../../config/types.js';
 import { createLogger } from '../../utils/logger.js';
@@ -30,34 +27,6 @@ function parseDictPeers(peers: Array<{ ip: Buffer; port: number }>): PeerInfo[] 
     ip: Buffer.from(p.ip).toString('utf-8'),
     port: p.port,
   }));
-}
-
-async function decompressResponse(
-  body: Buffer,
-  encoding: string | null
-): Promise<Buffer> {
-  if (!encoding) return body;
-
-  const chunks: Buffer[] = [];
-  const readable = Readable.from(body);
-
-  if (encoding === 'gzip') {
-    const gunzip = createGunzip();
-    readable.pipe(gunzip);
-    for await (const chunk of gunzip) {
-      chunks.push(chunk as Buffer);
-    }
-  } else if (encoding === 'deflate') {
-    const inflate = createInflate();
-    readable.pipe(inflate);
-    for await (const chunk of inflate) {
-      chunks.push(chunk as Buffer);
-    }
-  } else {
-    return body;
-  }
-
-  return Buffer.concat(chunks);
 }
 
 /**
@@ -96,9 +65,8 @@ export async function httpAnnounce(
       throw new Error(`HTTP tracker returned status ${res.status}`);
     }
 
-    const rawBody = Buffer.from(await res.arrayBuffer());
-    const contentEncoding = res.headers.get('content-encoding');
-    const body = await decompressResponse(rawBody, contentEncoding);
+    // Node.js fetch (undici) automatically decompresses gzip/deflate responses
+    const body = Buffer.from(await res.arrayBuffer());
 
     const decoded = bencode.decode(body);
 

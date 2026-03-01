@@ -4,6 +4,12 @@ import { formatBytes, formatSpeed } from '../utils/format';
 
 const store = useSeedrStore();
 
+function torrentStatus(torrent: { active: boolean; seeding: boolean }): { label: string; class: string } {
+  if (torrent.seeding) return { label: 'Seeding', class: 'bg-emerald-900/50 text-emerald-400' };
+  if (torrent.active) return { label: 'Announcing', class: 'bg-amber-900/50 text-amber-400' };
+  return { label: 'Queued', class: 'bg-gray-800 text-gray-500' };
+}
+
 async function remove(infoHash: string) {
   await store.removeTorrent(infoHash);
 }
@@ -30,13 +36,13 @@ async function remove(infoHash: string) {
             <div class="text-sm font-medium text-white truncate">{{ torrent.name }}</div>
             <div class="flex items-center gap-4 mt-1 text-xs text-gray-500">
               <span>{{ formatBytes(torrent.size) }}</span>
-              <span v-if="torrent.active">
+              <span v-if="torrent.seeding">
                 <span class="text-emerald-400">S:{{ torrent.seeders }}</span>
                 <span class="mx-1">/</span>
                 <span class="text-amber-400">L:{{ torrent.leechers }}</span>
               </span>
               <span v-else class="text-gray-600">S:— / L:—</span>
-              <span class="text-blue-400">{{ torrent.active ? formatSpeed(torrent.uploadRate || 0) : '—' }}</span>
+              <span class="text-blue-400">{{ torrent.seeding ? formatSpeed(torrent.uploadRate || 0) : '—' }}</span>
               <span>Up: {{ formatBytes(torrent.uploaded) }}</span>
             </div>
           </div>
@@ -44,11 +50,9 @@ async function remove(infoHash: string) {
           <div class="flex items-center gap-2 shrink-0">
             <span
               class="text-xs px-2 py-0.5 rounded"
-              :class="torrent.active
-                ? 'bg-emerald-900/50 text-emerald-400'
-                : 'bg-gray-800 text-gray-500'"
+              :class="torrentStatus(torrent).class"
             >
-              {{ torrent.active ? 'Active' : 'Idle' }}
+              {{ torrentStatus(torrent).label }}
             </span>
             <button
               @click="remove(torrent.infoHash)"

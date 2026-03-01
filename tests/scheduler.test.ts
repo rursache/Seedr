@@ -80,4 +80,29 @@ describe('Scheduler', () => {
     scheduler.remove('a');
     expect(scheduler.size()).toBe(1);
   });
+
+  it('should handle removing non-existent task gracefully', () => {
+    expect(() => scheduler.remove('nonexistent')).not.toThrow();
+    expect(scheduler.size()).toBe(0);
+  });
+
+  it('should return multiple due tasks at once', () => {
+    scheduler.schedule('a', 0);
+    scheduler.schedule('b', 0);
+    scheduler.schedule('c', 0);
+
+    const due = scheduler.getDueTasks();
+    expect(due).toHaveLength(3);
+    const hashes = due.map((t) => t.infoHash).sort();
+    expect(hashes).toEqual(['a', 'b', 'c']);
+  });
+
+  it('should return empty array when no tasks scheduled', () => {
+    const due = scheduler.getDueTasks();
+    expect(due).toHaveLength(0);
+  });
+
+  it('should clear an empty scheduler without error', () => {
+    expect(() => scheduler.clear()).not.toThrow();
+  });
 });

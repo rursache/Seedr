@@ -102,17 +102,24 @@ export function loadConfig(): AppConfig {
     return cfg;
   }
 
-  const raw = JSON.parse(readFileSync(CONFIG_PATH, 'utf-8'));
-  const result = configSchema.safeParse(raw);
+  try {
+    const raw = JSON.parse(readFileSync(CONFIG_PATH, 'utf-8'));
+    const result = configSchema.safeParse(raw);
 
-  if (!result.success) {
-    logger.warn({ errors: result.error.issues }, 'Invalid config.json — using defaults');
+    if (!result.success) {
+      logger.warn({ errors: result.error.issues }, 'Invalid config.json — using defaults');
+      const cfg = defaultConfig();
+      saveConfig(cfg);
+      return cfg;
+    }
+
+    return result.data as AppConfig;
+  } catch {
+    logger.warn('Could not parse config.json — using defaults');
     const cfg = defaultConfig();
     saveConfig(cfg);
     return cfg;
   }
-
-  return result.data as AppConfig;
 }
 
 export function saveConfig(config: AppConfig): void {

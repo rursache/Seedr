@@ -85,6 +85,14 @@ export class SeedManager extends EventEmitter {
 
     // Register all existing torrents with bandwidth dispatcher and schedule announces
     for (const [hash, torrent] of this.torrents) {
+      torrent.seeding = false; // Reset seeding state — must announce first
+      this.bandwidth.registerTorrent({
+        infoHash: hash,
+        seeders: torrent.seeders,
+        leechers: torrent.leechers,
+        active: torrent.active,
+        eligible: false, // Not eligible until first successful announce
+      });
       if (torrent.active) {
         this.scheduler.schedule(hash, 0); // Schedule initial announce
       }
@@ -231,6 +239,7 @@ export class SeedManager extends EventEmitter {
         announceCount: seedState.announceCount,
         lastEvent: '' as AnnounceEvent,
         active,
+        seeding: false, // Not seeding until first successful announce
       };
 
       this.torrents.set(hexHash, runtimeState);
@@ -243,7 +252,7 @@ export class SeedManager extends EventEmitter {
           seeders: 0,
           leechers: 0,
           active,
-          eligible: active,
+          eligible: false, // Not eligible until first successful announce
         });
 
         // Schedule initial announce (started event)
@@ -341,8 +350,9 @@ export class SeedManager extends EventEmitter {
       torrent.leechers = result.response.leechers;
       torrent.lastEvent = event;
       torrent.announceCount = torrent.seedState.announceCount;
+      torrent.seeding = true; // Successfully announced — now actually seeding
 
-      // Update bandwidth dispatcher with new peer counts
+      // Update bandwidth dispatcher: now eligible based on peer counts
       const eligible = this.isTorrentEligible(torrent);
       this.bandwidth.updateTorrent(infoHash, {
         seeders: result.response.seeders,
@@ -361,6 +371,10 @@ export class SeedManager extends EventEmitter {
         uploaded: torrent.seedState.uploaded,
       });
     } else {
+      // Failed announce — not seeding, not eligible for bandwidth
+      torrent.seeding = false;
+      this.bandwidth.updateTorrent(infoHash, { eligible: false });
+
       this.emit('announce:failure', {
         infoHash,
         tracker: result.trackerUrl,
@@ -501,6 +515,7 @@ export class SeedManager extends EventEmitter {
     seeders: number;
     leechers: number;
     active: boolean;
+    seeding: boolean;
     tracker: string;
   }> {
     return [...this.torrents.entries()].map(([hash, t]) => ({
@@ -511,6 +526,7 @@ export class SeedManager extends EventEmitter {
       seeders: t.seeders,
       leechers: t.leechers,
       active: t.active,
+      seeding: t.seeding,
       tracker: t.currentTracker,
     }));
   }

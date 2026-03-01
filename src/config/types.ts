@@ -173,7 +173,8 @@ export interface TorrentRuntimeState {
   consecutiveFailures: number;
   announceCount: number;
   lastEvent: AnnounceEvent;
-  active: boolean;
+  active: boolean; // in active slot (selected for seeding)
+  seeding: boolean; // at least one successful announce — actually seeding
 }
 
 export interface SeedrStatus {

@@ -4,6 +4,29 @@ import { computed } from 'vue';
 
 const store = useSeedrStore();
 
+const engineState = computed(() => {
+  if (!store.status?.running) return 'idle';
+  if (store.seedingCount > 0) return 'seeding';
+  if (store.activeCount > 0) return 'announcing';
+  return 'idle';
+});
+
+const statusLabel = computed(() => {
+  switch (engineState.value) {
+    case 'seeding': return 'Seeding';
+    case 'announcing': return 'Announcing';
+    default: return 'Idle';
+  }
+});
+
+const statusClass = computed(() => {
+  switch (engineState.value) {
+    case 'seeding': return 'text-emerald-400';
+    case 'announcing': return 'text-amber-400';
+    default: return 'text-gray-500';
+  }
+});
+
 const speedDisplay = computed(() => {
   if (!store.isSeeding) return '0.0 KB/s';
   const rate = store.status?.globalUploadRate ?? 0;
@@ -22,9 +45,9 @@ const ipDisplay = computed(() => {
       <div class="text-xs text-gray-500 uppercase tracking-wide">Status</div>
       <div
         class="mt-1 text-lg font-semibold"
-        :class="store.isSeeding ? 'text-emerald-400' : 'text-gray-500'"
+        :class="statusClass"
       >
-        {{ store.isSeeding ? 'Seeding' : 'Idle' }}
+        {{ statusLabel }}
       </div>
     </div>
 
@@ -34,9 +57,10 @@ const ipDisplay = computed(() => {
     </div>
 
     <div class="bg-gray-900 rounded-lg border border-gray-800 p-4">
-      <div class="text-xs text-gray-500 uppercase tracking-wide">Active Torrents</div>
+      <div class="text-xs text-gray-500 uppercase tracking-wide">Torrents</div>
       <div class="mt-1 text-lg font-semibold text-white">
-        {{ store.activeCount }} / {{ store.torrents.length }}
+        {{ store.seedingCount }} <span class="text-gray-600 text-sm font-normal">seeding</span>
+        / {{ store.torrents.length }} <span class="text-gray-600 text-sm font-normal">loaded</span>
       </div>
     </div>
 

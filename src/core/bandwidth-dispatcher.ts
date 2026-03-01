@@ -145,7 +145,9 @@ export class BandwidthDispatcher extends EventEmitter {
   }
 
   getGlobalRate(): number {
-    return this.currentRateKBs;
+    // Return 0 if no torrents are eligible (nothing actually being uploaded)
+    const hasEligible = [...this.torrents.values()].some((t) => t.eligible && t.active);
+    return hasEligible ? this.currentRateKBs : 0;
   }
 
   getAllocations(): BandwidthAllocation[] {

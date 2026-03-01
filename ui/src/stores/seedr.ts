@@ -10,6 +10,7 @@ interface TorrentInfo {
   seeders: number;
   leechers: number;
   active: boolean;
+  seeding: boolean;
   tracker: string;
   uploadRate?: number;
 }
@@ -100,6 +101,7 @@ export const useSeedrStore = defineStore('seedr', () => {
         seeders: t.seeders || 0,
         leechers: t.leechers || 0,
         active: t.active,
+        seeding: t.seeding || false,
         tracker: t.currentTracker || '',
         uploadRate: t.uploadRate || 0,
       }));
@@ -237,8 +239,12 @@ export const useSeedrStore = defineStore('seedr', () => {
     torrents.value.filter((t) => t.active).length
   );
 
+  const seedingCount = computed(() =>
+    torrents.value.filter((t) => t.seeding).length
+  );
+
   const isSeeding = computed(() =>
-    !!(status.value?.running && activeCount.value > 0)
+    !!(status.value?.running && seedingCount.value > 0)
   );
 
   return {
@@ -250,6 +256,7 @@ export const useSeedrStore = defineStore('seedr', () => {
     events,
     connected,
     activeCount,
+    seedingCount,
     isSeeding,
     actionPending,
     portCheck,
