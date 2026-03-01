@@ -120,13 +120,9 @@ When enabled, the browser will prompt for credentials when accessing the UI. All
 
 ## Client Profiles
 
-Each `.client` file defines how Seedr emulates a specific BitTorrent client:
+Seedr ships with several `.client` profile files that define how it emulates a specific BitTorrent client. Each profile controls peer ID format, key generation algorithm, URL encoding rules, HTTP headers, and query parameter ordering to match the real client's announce behavior.
 
-- **qBittorrent 5.1.4** - HASH_NO_LEADING_ZERO key, REGEX peer ID
-- **Deluge 2.1.1** - HASH_NO_LEADING_ZERO key, REGEX peer ID
-- **Transmission 3.00** - DIGIT_RANGE_HEX key, RANDOM_POOL_WITH_CHECKSUM peer ID
-- **BitTorrent 7.10.3** - HASH key, REGEX peer ID with URL encoding
-- **uTorrent 3.5.4** - HASH key, REGEX peer ID with URL encoding
+Profiles are stored in the `data/clients/` directory and can be selected from the Settings panel. You can also add custom profiles by placing `.client` files in that directory.
 
 ## API
 
