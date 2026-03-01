@@ -4,9 +4,13 @@ import { onMounted, onUnmounted, ref, computed } from 'vue';
 import Dashboard from './views/Dashboard.vue';
 import Settings from './views/Settings.vue';
 import TorrentUpload from './components/TorrentUpload.vue';
+import EventLog from './components/EventLog.vue';
 
 const store = useSeedrStore();
 const showSettings = ref(false);
+const showEventLog = ref(false);
+
+const hasErrors = computed(() => store.events.some(e => e.type.includes('failure') || e.type === 'stopped' || e.type.includes('removed')));
 
 // Settings modal save via exposed ref
 const settingsRef = ref<InstanceType<typeof Settings> | null>(null);
@@ -139,6 +143,27 @@ onUnmounted(() => {
             <!-- Divider -->
             <div class="w-px h-5 bg-gray-700/50"></div>
 
+            <!-- Event Log -->
+            <button
+              @click="showEventLog = true"
+              class="relative w-[30px] h-[30px] flex items-center justify-center bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-400 hover:text-white rounded-lg transition-colors"
+              title="Event Log"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 2l1.88 1.88" /><path d="M14.12 3.88 16 2" />
+                <path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1" />
+                <path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6" />
+                <path d="M12 20v-9" /><path d="M6.53 9C4.6 8.8 3 7.1 3 5" />
+                <path d="M6 13H2" /><path d="M3 21c0-2.1 1.7-3.9 3.8-4" />
+                <path d="M20.97 5c0 2.1-1.6 3.8-3.5 4" /><path d="M22 13h-4" />
+                <path d="M17.2 17c2.1.1 3.8 1.9 3.8 4" />
+              </svg>
+              <span
+                v-if="hasErrors"
+                class="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full"
+              ></span>
+            </button>
+
             <!-- Settings -->
             <button
               @click="showSettings = true"
@@ -211,7 +236,7 @@ onUnmounted(() => {
           v-if="showSettings"
           class="fixed inset-0 z-50 flex items-start justify-center pt-[8vh]"
         >
-          <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="showSettings = false"></div>
+          <div class="absolute inset-0 bg-black/60" @click="showSettings = false"></div>
           <Transition
             appear
             enter-active-class="transition-all duration-200 ease-out"
@@ -254,6 +279,47 @@ onUnmounted(() => {
               </div>
               <div class="p-6">
                 <Settings ref="settingsRef" @close="showSettings = false" />
+              </div>
+            </div>
+          </Transition>
+        </div>
+      </Transition>
+    </Teleport>
+    <!-- Event Log Modal -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition-all duration-200 ease-out"
+        leave-active-class="transition-all duration-150 ease-in"
+        enter-from-class="opacity-0"
+        leave-to-class="opacity-0"
+      >
+        <div
+          v-if="showEventLog"
+          class="fixed inset-0 z-50 flex items-start justify-center pt-[8vh]"
+        >
+          <div class="absolute inset-0 bg-black/60" @click="showEventLog = false"></div>
+          <Transition
+            appear
+            enter-active-class="transition-all duration-200 ease-out"
+            leave-active-class="transition-all duration-150 ease-in"
+            enter-from-class="opacity-0 scale-95 translate-y-4"
+            leave-to-class="opacity-0 scale-95 translate-y-4"
+          >
+            <div class="relative bg-gray-950 border border-gray-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[84vh] overflow-hidden mx-4 flex flex-col">
+              <div class="sticky top-0 z-10 bg-gray-950/95 backdrop-blur-sm border-b border-gray-800 px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <h2 class="text-lg font-bold text-white">Event Log</h2>
+                  <span class="text-xs text-gray-600">({{ store.events.length }})</span>
+                </div>
+                <button
+                  @click="showEventLog = false"
+                  class="px-4 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 hover:text-white rounded-lg text-xs font-medium transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+              <div class="flex-1 overflow-y-auto">
+                <EventLog />
               </div>
             </div>
           </Transition>

@@ -3,7 +3,6 @@ import { ref, computed } from 'vue';
 import { useSeedrStore, type SeedrEvent } from '../stores/seedr';
 
 const store = useSeedrStore();
-const expanded = ref(false);
 
 type FilterMode = 'all' | 'warnings' | 'success';
 const filter = ref<FilterMode>('warnings');
@@ -54,49 +53,29 @@ function eventSummary(event: { type: string; data: any }): string {
 </script>
 
 <template>
-  <div class="bg-gray-900 rounded-xl border border-gray-800">
-    <button
-      @click="expanded = !expanded"
-      class="w-full px-4 py-3 flex items-center justify-between text-left"
-    >
-      <div class="flex items-center gap-3">
-        <span class="text-gray-500 text-xs transition-transform duration-200" :class="expanded ? 'rotate-90' : ''">&#9654;</span>
-        <h2 class="text-sm font-semibold text-gray-300">Event Log</h2>
-        <span class="text-xs text-gray-600">({{ store.events.length }})</span>
-      </div>
-
-      <!-- Filter dropdown (stop click from toggling collapse) -->
+  <div>
+    <div class="px-4 py-2 flex items-center justify-end border-b border-gray-800/50">
       <select
-        v-if="expanded"
         v-model="filter"
-        @click.stop
         class="bg-gray-800 border border-gray-700 text-gray-400 text-xs rounded-lg px-2 py-1 focus:outline-none focus:border-gray-600"
       >
         <option value="warnings">Warnings & Errors</option>
         <option value="success">Success</option>
         <option value="all">All</option>
       </select>
-    </button>
-
-    <div
-      class="grid transition-[grid-template-rows] duration-200 ease-out"
-      :class="expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'"
-    >
-      <div class="overflow-hidden min-h-0">
-        <div class="border-t border-gray-800 max-h-48 overflow-y-auto">
-          <div v-if="filteredEvents.length === 0" class="px-4 py-4 text-center text-gray-600 text-xs">
-            No matching events
-          </div>
-          <div
-            v-for="event in filteredEvents"
-            :key="event.id"
-            class="px-4 py-1.5 text-xs font-mono flex items-center gap-3 hover:bg-gray-800/50"
-          >
-            <span class="text-gray-600 shrink-0">{{ formatTime(event.time) }}</span>
-            <span :class="eventColor(event.type)" class="shrink-0">{{ event.type }}</span>
-            <span class="text-gray-500 truncate">{{ eventSummary(event) }}</span>
-          </div>
-        </div>
+    </div>
+    <div class="max-h-[60vh] overflow-y-auto">
+      <div v-if="filteredEvents.length === 0" class="px-4 py-8 text-center text-gray-600 text-xs">
+        No matching events
+      </div>
+      <div
+        v-for="event in filteredEvents"
+        :key="event.id"
+        class="px-4 py-1.5 text-xs font-mono flex items-center gap-3 hover:bg-gray-800/50"
+      >
+        <span class="text-gray-600 shrink-0">{{ formatTime(event.time) }}</span>
+        <span :class="eventColor(event.type)" class="shrink-0">{{ event.type }}</span>
+        <span class="text-gray-500 truncate">{{ eventSummary(event) }}</span>
       </div>
     </div>
   </div>
