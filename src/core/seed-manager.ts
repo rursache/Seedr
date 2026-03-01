@@ -174,10 +174,10 @@ export class SeedManager extends EventEmitter {
   }
 
   private startFileWatcher(): void {
-    const watchPath = join(TORRENTS_DIR, '*.torrent');
     const inContainer = existsSync('/.dockerenv') || !!process.env['container'];
-    this.fileWatcher = chokidarWatch(watchPath, {
+    this.fileWatcher = chokidarWatch(TORRENTS_DIR, {
       ignoreInitial: true,
+      depth: 0,
       usePolling: inContainer,
       interval: 5000,
       awaitWriteFinish: { stabilityThreshold: 2000, pollInterval: 500 },
@@ -185,6 +185,7 @@ export class SeedManager extends EventEmitter {
     logger.debug({ inContainer }, 'File watcher started');
 
     this.fileWatcher.on('add', (filePath: string) => {
+      if (!filePath.endsWith('.torrent')) return;
       logger.info({ file: basename(filePath) }, 'Torrent file detected');
       this.addTorrent(filePath);
     });
@@ -194,6 +195,7 @@ export class SeedManager extends EventEmitter {
     });
 
     this.fileWatcher.on('unlink', (filePath: string) => {
+      if (!filePath.endsWith('.torrent')) return;
       // Find and remove the torrent by file path
       for (const [hash, torrent] of this.torrents) {
         if (torrent.meta.filePath === filePath) {

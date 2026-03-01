@@ -113,13 +113,13 @@ export const useSeedrStore = defineStore('seedr', () => {
     }
     actionPending.value = false;
 
-    // Auto-check port on engine start or port change
+    // Auto-check port when engine transitions to running, or port changes while running
     if (data.running && data.externalIp && data.port > 0) {
-      if (!prevRunning || data.port !== lastKnownPort) {
-        lastKnownPort = data.port;
-        if (!portCheck.value.checking) {
-          checkPort();
-        }
+      const portChanged = lastKnownPort > 0 && data.port !== lastKnownPort;
+      const justStarted = prevRunning === false && data.running;
+      lastKnownPort = data.port;
+      if ((justStarted || portChanged) && !portCheck.value.checking) {
+        checkPort();
       }
     }
   });
