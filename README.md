@@ -87,6 +87,8 @@ All configuration is managed through the web UI Settings panel. Settings are per
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `PUID` | `0` | User ID to run as (for volume permissions) |
+| `PGID` | `0` | Group ID to run as (for volume permissions) |
 | `SEEDR_DATA_DIR` | `data` | Root directory for config, state, torrents, and client profiles |
 | `SEEDR_CLIENTS_DIR` | `$SEEDR_DATA_DIR/clients` | Directory containing `.client` profile files |
 | `SEEDR_TORRENTS_DIR` | `$SEEDR_DATA_DIR/torrents` | Directory for `.torrent` files (watched for changes) |
