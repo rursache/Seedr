@@ -172,7 +172,7 @@ async function announce(infoHash: string) {
               <!-- Row 1: Name + status badge -->
               <div class="flex items-center justify-between gap-3">
                 <div
-                  class="text-sm font-medium text-white truncate"
+                  class="text-base font-medium text-white truncate"
                   :title="showFileName ? torrent.name : torrent.fileName"
                 >{{ showFileName ? torrent.fileName : torrent.name }}</div>
                 <span
@@ -183,35 +183,35 @@ async function announce(infoHash: string) {
                 </span>
               </div>
 
-              <!-- Row 2: Stats -->
-              <div class="flex items-center gap-4 mt-1.5 text-xs text-gray-500">
-                <span>{{ formatBytes(torrent.size) }}</span>
-                <span v-if="torrent.seeding || torrent.completed">
-                  <span class="text-emerald-400">S:{{ torrent.seeders }}</span>
-                  <span class="mx-1">/</span>
-                  <span class="text-amber-400">L:{{ torrent.leechers }}</span>
-                </span>
-                <span v-else class="text-gray-600">S:-- / L:--</span>
-                <span class="text-blue-400">{{ torrent.seeding && !torrent.completed ? formatSpeed(torrent.uploadRate || 0) : '--' }}</span>
-                <span title="Local simulated upload">Local: {{ formatBytes(torrent.uploaded) }}</span>
-                <span class="text-gray-600" title="Reported to tracker">Reported: {{ formatBytes(torrent.reportedUploaded) }}</span>
-              </div>
-
-              <!-- Row 3: Actions -->
-              <div class="flex items-center gap-2 mt-2">
-                <button
-                  v-if="torrent.active && store.status?.running"
-                  @click="announce(torrent.infoHash)"
-                  class="text-xs text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 border border-transparent hover:border-blue-500/20 px-2.5 py-1 rounded-lg transition-all"
-                >
-                  Force Announce
-                </button>
-                <button
-                  @click="remove(torrent.infoHash)"
-                  class="text-xs text-gray-500 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 px-2.5 py-1 rounded-lg transition-all"
-                >
-                  Remove
-                </button>
+              <!-- Row 2: Stats + Actions -->
+              <div class="flex items-center justify-between mt-1.5">
+                <div class="flex items-center gap-4 text-[0.8rem] text-gray-500">
+                  <span>{{ formatBytes(torrent.size) }}</span>
+                  <span v-if="torrent.seeding || torrent.completed">
+                    <span class="text-emerald-400">S:{{ torrent.seeders }}</span>
+                    <span class="mx-1">/</span>
+                    <span class="text-amber-400">L:{{ torrent.leechers }}</span>
+                  </span>
+                  <span v-else class="text-gray-600">S:-- / L:--</span>
+                  <span class="text-blue-400">{{ torrent.seeding && !torrent.completed ? formatSpeed(torrent.uploadRate || 0) : '--' }}</span>
+                  <span title="Local simulated upload">Local: {{ formatBytes(torrent.uploaded) }}</span>
+                  <span class="text-gray-600" title="Reported to tracker">Reported: {{ formatBytes(torrent.reportedUploaded) }}</span>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <button
+                    v-if="torrent.active && store.status?.running"
+                    @click="announce(torrent.infoHash)"
+                    class="text-xs text-gray-500 hover:text-blue-400 bg-blue-500/5 hover:bg-blue-500/10 border border-blue-500/10 hover:border-blue-500/20 px-2.5 py-1 rounded-lg transition-all"
+                  >
+                    Force Announce
+                  </button>
+                  <button
+                    @click="remove(torrent.infoHash)"
+                    class="text-xs text-gray-500 hover:text-red-400 bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 hover:border-red-500/20 px-2.5 py-1 rounded-lg transition-all"
+                  >
+                    Remove
+                  </button>
+                </div>
               </div>
             </div>
           </div>
