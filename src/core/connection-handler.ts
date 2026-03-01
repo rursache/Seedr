@@ -43,6 +43,7 @@ export class ConnectionHandler {
 
       this.server = net.createServer((socket) => {
         // Accept and immediately close — we're not actually serving data
+        socket.on('error', () => {}); // Ignore connection errors (ECONNRESET, etc.)
         socket.end();
       });
 
