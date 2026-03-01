@@ -20,6 +20,7 @@ const {
   loadState,
   saveState,
   listClientFiles,
+  validateConfigUpdate,
 } = await import('../src/config/config.js');
 
 describe('Config', () => {
@@ -175,6 +176,57 @@ describe('Config', () => {
       expect(state.lastSaved).toBeGreaterThan(0);
       const raw = JSON.parse(readFileSync(join(TEST_DATA_DIR, 'state.json'), 'utf-8'));
       expect(raw.lastSaved).toBeGreaterThan(0);
+    });
+  });
+
+  describe('validateConfigUpdate', () => {
+    it('should accept valid partial updates', () => {
+      const result = validateConfigUpdate({ port: 8080, minUploadRate: 200 });
+      expect(result).toEqual({ port: 8080, minUploadRate: 200 });
+    });
+
+    it('should accept a single field update', () => {
+      const result = validateConfigUpdate({ maxUploadRate: 1000 });
+      expect(result).toEqual({ maxUploadRate: 1000 });
+    });
+
+    it('should accept empty object', () => {
+      const result = validateConfigUpdate({});
+      expect(result).toEqual({});
+    });
+
+    it('should reject simultaneousSeed=0', () => {
+      expect(() => validateConfigUpdate({ simultaneousSeed: 0 })).toThrow('Must be -1 (unlimited) or >= 1');
+    });
+
+    it('should allow simultaneousSeed=-1', () => {
+      const result = validateConfigUpdate({ simultaneousSeed: -1 });
+      expect(result).toEqual({ simultaneousSeed: -1 });
+    });
+
+    it('should allow simultaneousSeed=1', () => {
+      const result = validateConfigUpdate({ simultaneousSeed: 1 });
+      expect(result).toEqual({ simultaneousSeed: 1 });
+    });
+
+    it('should reject invalid types', () => {
+      expect(() => validateConfigUpdate({ port: 'not-a-number' })).toThrow();
+    });
+
+    it('should reject out-of-range values', () => {
+      expect(() => validateConfigUpdate({ port: 99999 })).toThrow();
+      expect(() => validateConfigUpdate({ minUploadRate: -5 })).toThrow();
+    });
+
+    it('should filter out unknown keys', () => {
+      const result = validateConfigUpdate({ port: 8080, unknownKey: 'foo', anotherBad: 123 } as any);
+      expect(result).toEqual({ port: 8080 });
+      expect(result).not.toHaveProperty('unknownKey');
+      expect(result).not.toHaveProperty('anotherBad');
+    });
+
+    it('should format multiple validation errors', () => {
+      expect(() => validateConfigUpdate({ port: 'bad', minUploadRate: -5 } as any)).toThrow(/port/);
     });
   });
 

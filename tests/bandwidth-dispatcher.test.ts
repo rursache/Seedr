@@ -235,4 +235,147 @@ describe('BandwidthDispatcher', () => {
       }, 1500);
     });
   });
+
+  describe('driftGlobalSpeed', () => {
+    it('should keep rate within min/max bounds after many drifts', () => {
+      dispatcher.registerTorrent({ infoHash: 'aaa', seeders: 1, leechers: 5, active: true, eligible: true });
+
+      // Call drift many times via updateRates (which calls refreshGlobalSpeed) + manual drift simulation
+      // We test via repeated rate checks after updateRates triggers
+      for (let i = 0; i < 100; i++) {
+        // Trigger drift by starting/stopping (which calls refreshGlobalSpeed)
+        dispatcher.updateRates(100, 500);
+        const rate = dispatcher.getGlobalRate();
+        expect(rate).toBeGreaterThanOrEqual(100);
+        expect(rate).toBeLessThanOrEqual(500);
+      }
+    });
+
+    it('should return minRate when min equals max', () => {
+      const fixedDispatcher = new BandwidthDispatcher(300, 300);
+      fixedDispatcher.registerTorrent({ infoHash: 'aaa', seeders: 1, leechers: 5, active: true, eligible: true });
+      expect(fixedDispatcher.getGlobalRate()).toBe(300);
+      fixedDispatcher.updateRates(300, 300);
+      expect(fixedDispatcher.getGlobalRate()).toBe(300);
+      fixedDispatcher.stop();
+    });
+  });
+
+  describe('restoreAccumulated', () => {
+    it('should restore bytes back to accumulator', () => {
+      dispatcher.registerTorrent({ infoHash: 'aaa', seeders: 1, leechers: 5, active: true, eligible: true });
+
+      // Manually set some accumulated bytes then consume
+      dispatcher.restoreAccumulated('aaa', 5000);
+      expect(dispatcher.getAccumulated('aaa')).toBe(5000);
+
+      // Consume and verify
+      const consumed = dispatcher.consumeAccumulated('aaa');
+      expect(consumed).toBe(5000);
+      expect(dispatcher.getAccumulated('aaa')).toBe(0);
+
+      // Restore after consume
+      dispatcher.restoreAccumulated('aaa', 3000);
+      expect(dispatcher.getAccumulated('aaa')).toBe(3000);
+    });
+
+    it('should add to existing accumulated bytes', () => {
+      dispatcher.registerTorrent({ infoHash: 'aaa', seeders: 1, leechers: 5, active: true, eligible: true });
+
+      dispatcher.restoreAccumulated('aaa', 1000);
+      dispatcher.restoreAccumulated('aaa', 2000);
+      expect(dispatcher.getAccumulated('aaa')).toBe(3000);
+    });
+
+    it('should no-op on zero bytes', () => {
+      dispatcher.registerTorrent({ infoHash: 'aaa', seeders: 1, leechers: 5, active: true, eligible: true });
+
+      dispatcher.restoreAccumulated('aaa', 1000);
+      dispatcher.restoreAccumulated('aaa', 0);
+      expect(dispatcher.getAccumulated('aaa')).toBe(1000);
+    });
+
+    it('should no-op on negative bytes', () => {
+      dispatcher.registerTorrent({ infoHash: 'aaa', seeders: 1, leechers: 5, active: true, eligible: true });
+
+      dispatcher.restoreAccumulated('aaa', 1000);
+      dispatcher.restoreAccumulated('aaa', -500);
+      expect(dispatcher.getAccumulated('aaa')).toBe(1000);
+    });
+  });
+
+  describe('getActualTorrentRate', () => {
+    it('should return 0 for unknown torrent', () => {
+      expect(dispatcher.getActualTorrentRate('nonexistent')).toBe(0);
+    });
+
+    it('should return 0 before any ticks', () => {
+      dispatcher.registerTorrent({ infoHash: 'aaa', seeders: 1, leechers: 5, active: true, eligible: true });
+      expect(dispatcher.getActualTorrentRate('aaa')).toBe(0);
+    });
+
+    it('should return per-torrent throughput after ticks', () => {
+      dispatcher.registerTorrent({ infoHash: 'aaa', seeders: 1, leechers: 5, active: true, eligible: true });
+      dispatcher.registerTorrent({ infoHash: 'bbb', seeders: 1, leechers: 10, active: true, eligible: true });
+      dispatcher.start();
+
+      return new Promise<void>((resolve) => {
+        setTimeout(() => {
+          const rateA = dispatcher.getActualTorrentRate('aaa');
+          const rateB = dispatcher.getActualTorrentRate('bbb');
+          expect(rateA).toBeGreaterThan(0);
+          expect(rateB).toBeGreaterThan(0);
+          // Combined should roughly equal global actual rate
+          const total = dispatcher.getActualRate();
+          expect(rateA + rateB).toBeCloseTo(total, -2);
+          resolve();
+        }, 1500);
+      });
+    });
+  });
+
+  describe('10% floor allocation', () => {
+    it('should guarantee minimum bandwidth even with extreme weight difference', () => {
+      // Torrent A: many leechers, high weight. Torrent B: few leechers, low weight.
+      dispatcher.registerTorrent({ infoHash: 'aaa', seeders: 1, leechers: 100, active: true, eligible: true });
+      dispatcher.registerTorrent({ infoHash: 'bbb', seeders: 100, leechers: 1, active: true, eligible: true });
+
+      const allocations = dispatcher.getAllocations();
+      const allocA = allocations.find((a) => a.infoHash === 'aaa')!;
+      const allocB = allocations.find((a) => a.infoHash === 'bbb')!;
+
+      // B should get at least the 10% floor (5% of total since 2 torrents)
+      const totalBandwidth = allocA.bytesPerSecond + allocB.bytesPerSecond;
+      expect(allocB.bytesPerSecond).toBeGreaterThan(0);
+      // Floor is 10% of equal share = 10% * 50% = 5% of total
+      expect(allocB.bytesPerSecond / totalBandwidth).toBeGreaterThanOrEqual(0.04); // ~5% with rounding
+    });
+
+    it('should sum allocations to approximately the global rate', () => {
+      dispatcher.registerTorrent({ infoHash: 'aaa', seeders: 5, leechers: 20, active: true, eligible: true });
+      dispatcher.registerTorrent({ infoHash: 'bbb', seeders: 10, leechers: 5, active: true, eligible: true });
+      dispatcher.registerTorrent({ infoHash: 'ccc', seeders: 1, leechers: 50, active: true, eligible: true });
+
+      const allocations = dispatcher.getAllocations();
+      const totalAllocated = allocations.reduce((sum, a) => sum + a.bytesPerSecond, 0);
+      const expectedTotal = dispatcher.getGlobalRate() * 1024; // KB/s to bytes/s
+
+      expect(totalAllocated).toBeCloseTo(expectedTotal, -1);
+    });
+
+    it('should give each torrent at least the floor amount', () => {
+      dispatcher.registerTorrent({ infoHash: 'aaa', seeders: 0, leechers: 1000, active: true, eligible: true });
+      dispatcher.registerTorrent({ infoHash: 'bbb', seeders: 1000, leechers: 1, active: true, eligible: true });
+      dispatcher.registerTorrent({ infoHash: 'ccc', seeders: 500, leechers: 2, active: true, eligible: true });
+
+      const allocations = dispatcher.getAllocations();
+      const totalBytes = dispatcher.getGlobalRate() * 1024;
+      const equalShare = totalBytes / 3;
+      const floor = equalShare * 0.1;
+
+      for (const alloc of allocations) {
+        expect(alloc.bytesPerSecond).toBeGreaterThanOrEqual(floor * 0.99); // tiny float tolerance
+      }
+    });
+  });
 });

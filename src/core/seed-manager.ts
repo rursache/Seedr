@@ -425,38 +425,11 @@ export class SeedManager extends EventEmitter {
   }
 
   private isTorrentEligible(torrent: TorrentRuntimeState): boolean {
-    // Completed torrents don't accumulate bandwidth
-    if (torrent.completed) {
-      return false;
-    }
-
-    // skipIfNoPeers: if no peers at all, don't report upload
-    if (this.config.skipIfNoPeers && torrent.seeders + torrent.leechers === 0) {
-      return false;
-    }
-
-    // keepTorrentWithZeroLeechers=false: skip bandwidth when no leechers
-    if (!this.config.keepTorrentWithZeroLeechers && torrent.leechers === 0) {
-      return false;
-    }
-
-    // minLeechers check
-    if (torrent.leechers < this.config.minLeechers) {
-      return false;
-    }
-
-    return true;
+    return checkTorrentEligible(this.config, torrent);
   }
 
-  /**
-   * Check if a torrent has reached its upload ratio target.
-   * Returns true if the torrent should be deactivated.
-   */
   private hasReachedRatioTarget(torrent: TorrentRuntimeState): boolean {
-    if (this.config.uploadRatioTarget <= 0) return false; // -1 = unlimited
-    if (torrent.meta.totalSize === 0) return false;
-    const ratio = torrent.seedState.uploaded / torrent.meta.totalSize;
-    return ratio >= this.config.uploadRatioTarget;
+    return checkRatioTarget(this.config, torrent);
   }
 
   private persistState(): void {
@@ -671,4 +644,21 @@ export class SeedManager extends EventEmitter {
   getClientFiles(): string[] {
     return listClientFiles();
   }
+}
+
+// ── Exported pure functions for testability ──
+
+export function checkTorrentEligible(config: AppConfig, torrent: TorrentRuntimeState): boolean {
+  if (torrent.completed) return false;
+  if (config.skipIfNoPeers && torrent.seeders + torrent.leechers === 0) return false;
+  if (!config.keepTorrentWithZeroLeechers && torrent.leechers === 0) return false;
+  if (torrent.leechers < config.minLeechers) return false;
+  return true;
+}
+
+export function checkRatioTarget(config: AppConfig, torrent: TorrentRuntimeState): boolean {
+  if (config.uploadRatioTarget <= 0) return false;
+  if (torrent.meta.totalSize === 0) return false;
+  const ratio = torrent.seedState.uploaded / torrent.meta.totalSize;
+  return ratio >= config.uploadRatioTarget;
 }
