@@ -1,0 +1,8 @@
+node_modules/
+dist/
+data/
+torrents/*.torrent
+.env
+ui/node_modules/
+ui/dist/
+*.DS_Store

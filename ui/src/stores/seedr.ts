@@ -1,0 +1,261 @@
+import { defineStore } from 'pinia';
+import { ref, computed } from 'vue';
+import { useWebSocket } from '../composables/useWebSocket';
+
+interface TorrentInfo {
+  infoHash: string;
+  name: string;
+  size: number;
+  uploaded: number;
+  seeders: number;
+  leechers: number;
+  active: boolean;
+  tracker: string;
+  uploadRate?: number;
+}
+
+interface AppConfig {
+  client: string;
+  port: number;
+  minUploadRate: number;
+  maxUploadRate: number;
+  simultaneousSeed: number;
+  keepTorrentWithZeroLeechers: boolean;
+  skipIfNoPeers: boolean;
+  minLeechers: number;
+  uploadRatioTarget: number;
+}
+
+interface SeedrState {
+  running: boolean;
+  externalIp: string | null;
+  externalIpv6: string | null;
+  port: number;
+  client: string;
+  globalUploadRate: number;
+  torrents: any[];
+  uptime: number;
+}
+
+export interface SeedrEvent {
+  id: number;
+  type: string;
+  data: any;
+  time: number;
+}
+
+let nextEventId = 1;
+
+export const useSeedrStore = defineStore('seedr', () => {
+  const config = ref<AppConfig | null>(null);
+  const configLoaded = ref(false);
+  const status = ref<SeedrState | null>(null);
+  const torrents = ref<TorrentInfo[]>([]);
+  const clients = ref<string[]>([]);
+  const events = ref<SeedrEvent[]>([]);
+  const actionPending = ref(false);
+
+  // Port reachability check
+  const portCheck = ref<{
+    checking: boolean;
+    result: { reachable: boolean; nodes: Array<{ location: string; success: boolean; time?: number; error?: string }> } | null;
+    error: string | null;
+  }>({ checking: false, result: null, error: null });
+
+  const { socket, connected } = useWebSocket();
+
+  function addEvent(type: string, data: any) {
+    events.value.unshift({ id: nextEventId++, type, data, time: Date.now() });
+    if (events.value.length > 100) events.value.pop();
+  }
+
+  async function checkPort() {
+    portCheck.value = { checking: true, result: null, error: null };
+    try {
+      const res = await fetch('/api/control/port-check');
+      if (!res.ok) {
+        const data = await res.json();
+        portCheck.value = { checking: false, result: null, error: data.error || `HTTP ${res.status}` };
+        return;
+      }
+      const result = await res.json();
+      portCheck.value = { checking: false, result, error: null };
+    } catch {
+      portCheck.value = { checking: false, result: null, error: 'Network error' };
+    }
+  }
+
+  // Listen for WebSocket events
+  let lastKnownPort = 0;
+
+  socket.on('state', (data: SeedrState) => {
+    const prevRunning = status.value?.running;
+    status.value = data;
+    if (data.torrents) {
+      torrents.value = data.torrents.map((t: any) => ({
+        infoHash: t.seedState?.infoHash || t.meta?.infoHash?.toString('hex') || '',
+        name: t.meta?.name || 'Unknown',
+        size: t.meta?.totalSize || 0,
+        uploaded: t.seedState?.uploaded || 0,
+        seeders: t.seeders || 0,
+        leechers: t.leechers || 0,
+        active: t.active,
+        tracker: t.currentTracker || '',
+        uploadRate: t.uploadRate || 0,
+      }));
+    }
+    actionPending.value = false;
+
+    // Auto-check port on engine start or port change
+    if (data.running && data.externalIp && data.port > 0) {
+      if (!prevRunning || data.port !== lastKnownPort) {
+        lastKnownPort = data.port;
+        if (!portCheck.value.checking) {
+          checkPort();
+        }
+      }
+    }
+  });
+
+  socket.on('started', () => {
+    addEvent('started', {});
+    actionPending.value = false;
+  });
+
+  socket.on('announce:success', (data: any) => addEvent('announce:success', data));
+  socket.on('announce:failure', (data: any) => addEvent('announce:failure', data));
+  socket.on('torrent:added', (data: any) => addEvent('torrent:added', data));
+  socket.on('torrent:removed', (data: any) => addEvent('torrent:removed', data));
+
+  socket.on('stopped', () => {
+    addEvent('stopped', {});
+    actionPending.value = false;
+    portCheck.value = { checking: false, result: null, error: null };
+  });
+
+  socket.on('disconnect', () => {
+    status.value = null;
+    portCheck.value = { checking: false, result: null, error: null };
+  });
+
+  // REST API calls
+  async function fetchConfig() {
+    try {
+      const res = await fetch('/api/config');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      config.value = await res.json();
+      configLoaded.value = true;
+    } catch (e) {
+      console.error('Failed to fetch config:', e);
+    }
+  }
+
+  async function updateConfig(updates: Partial<AppConfig>) {
+    const res = await fetch('/api/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    config.value = await res.json();
+  }
+
+  async function fetchClients() {
+    try {
+      const res = await fetch('/api/config/clients');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      clients.value = await res.json();
+    } catch (e) {
+      console.error('Failed to fetch clients:', e);
+    }
+  }
+
+  async function fetchStatus() {
+    try {
+      const res = await fetch('/api/control/status');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      status.value = await res.json();
+    } catch (e) {
+      console.error('Failed to fetch status:', e);
+    }
+  }
+
+  async function fetchTorrents() {
+    try {
+      const res = await fetch('/api/torrents');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      torrents.value = await res.json();
+    } catch (e) {
+      console.error('Failed to fetch torrents:', e);
+    }
+  }
+
+  async function uploadTorrent(file: File): Promise<{ success?: boolean; error?: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch('/api/torrents', { method: 'POST', body: formData });
+    const result = await res.json();
+    await fetchTorrents();
+    return result;
+  }
+
+  async function removeTorrent(infoHash: string) {
+    torrents.value = torrents.value.filter((t) => t.infoHash !== infoHash);
+    try {
+      const res = await fetch(`/api/torrents/${infoHash}`, { method: 'DELETE' });
+      if (!res.ok) await fetchTorrents();
+    } catch {
+      await fetchTorrents();
+    }
+  }
+
+  async function startSeeding() {
+    actionPending.value = true;
+    try {
+      await fetch('/api/control/start', { method: 'POST' });
+    } catch {
+      actionPending.value = false;
+    }
+  }
+
+  async function stopSeeding() {
+    actionPending.value = true;
+    try {
+      await fetch('/api/control/stop', { method: 'POST' });
+    } catch {
+      actionPending.value = false;
+    }
+  }
+
+  const activeCount = computed(() =>
+    torrents.value.filter((t) => t.active).length
+  );
+
+  const isSeeding = computed(() =>
+    !!(status.value?.running && activeCount.value > 0)
+  );
+
+  return {
+    config,
+    configLoaded,
+    status,
+    torrents,
+    clients,
+    events,
+    connected,
+    activeCount,
+    isSeeding,
+    actionPending,
+    portCheck,
+    fetchConfig,
+    updateConfig,
+    fetchClients,
+    fetchStatus,
+    fetchTorrents,
+    uploadTorrent,
+    removeTorrent,
+    startSeeding,
+    stopSeeding,
+    checkPort,
+  };
+});
