@@ -1,6 +1,6 @@
 # Seedr
 
-![logo]()
+<img src="https://i.imgur.com/j4MJw55.png" alt="logo" width="150">
 
 BitTorrent ratio master — emulates BT clients and reports simulated upload to private trackers.
 
@@ -92,6 +92,31 @@ All configuration is managed through the web UI Settings panel. Settings are per
 | `SEEDR_TORRENTS_DIR` | `$SEEDR_DATA_DIR/torrents` | Directory for `.torrent` files (watched for changes) |
 | `WEB_PORT` | `8080` | Web UI and API port |
 | `LOG_LEVEL` | `info` | Log level (debug, info, warn, error) |
+| `SEEDR_USERNAME` | *(unset)* | Username for web UI authentication (optional) |
+| `SEEDR_PASSWORD` | *(unset)* | Password for web UI authentication (optional) |
+
+## Authentication
+
+The web UI and API have **no authentication by default** — this is intentional since Seedr is designed to run locally or in Docker with only the BitTorrent port exposed to the internet.
+
+To enable optional Basic Auth, set both `SEEDR_USERNAME` and `SEEDR_PASSWORD`:
+
+```bash
+# Docker Compose — uncomment the environment section in docker-compose.yml
+environment:
+  SEEDR_USERNAME: admin
+  SEEDR_PASSWORD: changeme
+
+# Docker manual
+docker run -d --name seedr -p 8080:8080 -v ./data:/data \
+  -e SEEDR_USERNAME=admin -e SEEDR_PASSWORD=changeme \
+  ghcr.io/rursache/seedr:latest
+
+# Local
+SEEDR_USERNAME=admin SEEDR_PASSWORD=changeme npm start
+```
+
+When enabled, the browser will prompt for credentials when accessing the UI. All API endpoints and WebSocket connections are protected. If only one of the two variables is set, authentication remains disabled.
 
 ## Client Profiles
 

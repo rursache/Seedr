@@ -1,5 +1,7 @@
 import type { Server } from 'socket.io';
 import type { SeedManager } from '../core/seed-manager.js';
+import type { AuthConfig } from './server.js';
+import { verifyBasicAuth } from './server.js';
 import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('websocket');
@@ -13,7 +15,25 @@ interface RecentEvent {
   time: number;
 }
 
-export function setupWebSocket(io: Server, seedManager: SeedManager): void {
+export function setupWebSocket(io: Server, seedManager: SeedManager, authConfig?: AuthConfig): void {
+  // Authenticate WebSocket connections when auth is enabled
+  if (authConfig?.enabled) {
+    io.use((socket, next) => {
+      // Browser sends Basic Auth header on WebSocket upgrade from same origin
+      const authHeader = socket.handshake.headers.authorization;
+      if (verifyBasicAuth(authHeader, authConfig)) {
+        return next();
+      }
+      // Fallback: check socket.handshake.auth for programmatic clients
+      if (socket.handshake.auth?.token) {
+        const tokenAuth = `Basic ${Buffer.from(socket.handshake.auth.token).toString('base64')}`;
+        if (verifyBasicAuth(tokenAuth, authConfig)) {
+          return next();
+        }
+      }
+      next(new Error('Unauthorized'));
+    });
+  }
   let broadcastTimer: ReturnType<typeof setInterval> | null = null;
   const recentEvents: RecentEvent[] = [];
 

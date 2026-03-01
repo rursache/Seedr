@@ -42,9 +42,17 @@ export class ConnectionHandler {
       const port = configuredPort === 0 ? randomInt(PORT_MIN, PORT_MAX + 1) : configuredPort;
 
       this.server = net.createServer((socket) => {
-        // Accept and immediately close — we're not actually serving data
+        // Accept connections but don't serve data.
+        // Wait for the peer's handshake (up to 68 bytes) before closing,
+        // mimicking a real client that reads the handshake then declines.
         socket.on('error', () => {}); // Ignore connection errors (ECONNRESET, etc.)
-        socket.end();
+        socket.setTimeout(5000);
+        socket.once('data', () => {
+          socket.end();
+        });
+        socket.once('timeout', () => {
+          socket.end();
+        });
       });
 
       try {
