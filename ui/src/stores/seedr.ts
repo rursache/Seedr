@@ -12,6 +12,7 @@ interface TorrentInfo {
   leechers: number;
   active: boolean;
   seeding: boolean;
+  completed: boolean;
   tracker: string;
   uploadRate?: number;
 }
@@ -35,6 +36,7 @@ interface SeedrState {
   port: number;
   client: string;
   globalUploadRate: number;
+  actualUploadRate: number;
   torrents: any[];
   uptime: number;
 }
@@ -104,6 +106,7 @@ export const useSeedrStore = defineStore('seedr', () => {
         leechers: t.leechers || 0,
         active: t.active,
         seeding: t.seeding || false,
+        completed: t.completed || false,
         tracker: t.currentTracker || '',
         uploadRate: t.uploadRate || 0,
       }));
@@ -136,6 +139,7 @@ export const useSeedrStore = defineStore('seedr', () => {
     addEvent('torrent:removed', data);
     fetchTorrents(); // Refresh torrent list when a torrent is removed
   });
+  socket.on('torrent:completed', (data: any) => addEvent('torrent:completed', data));
 
   socket.on('stopped', () => {
     addEvent('stopped', {});
@@ -145,6 +149,7 @@ export const useSeedrStore = defineStore('seedr', () => {
 
   socket.on('disconnect', () => {
     status.value = null;
+    torrents.value = [];
     portCheck.value = { checking: false, result: null, error: null };
   });
 

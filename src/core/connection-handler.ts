@@ -33,23 +33,38 @@ export class ConnectionHandler {
 
   /**
    * Bind a TCP port. If configuredPort is 0, pick a random one in the ephemeral range.
+   * Retries up to 3 times on collision when using random ports.
    */
   async start(configuredPort: number): Promise<void> {
-    const port = configuredPort === 0 ? randomInt(PORT_MIN, PORT_MAX + 1) : configuredPort;
+    const maxAttempts = configuredPort === 0 ? 3 : 1;
 
-    this.server = net.createServer((socket) => {
-      // Accept and immediately close — we're not actually serving data
-      socket.end();
-    });
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const port = configuredPort === 0 ? randomInt(PORT_MIN, PORT_MAX + 1) : configuredPort;
 
-    await new Promise<void>((resolve, reject) => {
-      this.server!.on('error', reject);
-      this.server!.listen(port, () => {
-        this._port = port;
-        logger.info({ port }, 'TCP port bound');
-        resolve();
+      this.server = net.createServer((socket) => {
+        // Accept and immediately close — we're not actually serving data
+        socket.end();
       });
-    });
+
+      try {
+        await new Promise<void>((resolve, reject) => {
+          this.server!.on('error', reject);
+          this.server!.listen(port, () => {
+            this._port = port;
+            logger.info({ port }, 'TCP port bound');
+            resolve();
+          });
+        });
+        break; // Success
+      } catch (err: any) {
+        this.server = null;
+        if (err?.code === 'EADDRINUSE' && attempt < maxAttempts - 1) {
+          logger.warn({ port, attempt: attempt + 1 }, 'Port in use, retrying with different port');
+          continue;
+        }
+        throw err;
+      }
+    }
 
     // Resolve external IPs
     await this.refreshIps();
@@ -66,6 +81,17 @@ export class ConnectionHandler {
 
     this._externalIp = ipv4;
     this._externalIpv6 = ipv6;
+
+    // If IPv4 failed, retry sooner (5 min instead of 90 min)
+    if (!ipv4 && this.refreshTimer) {
+      clearInterval(this.refreshTimer);
+      this.refreshTimer = setInterval(() => this.refreshIps(), 5 * 60 * 1000);
+      logger.warn('IPv4 resolution failed — retrying in 5 minutes');
+    } else if (ipv4 && this.refreshTimer) {
+      // Restore normal interval if we recovered
+      clearInterval(this.refreshTimer);
+      this.refreshTimer = setInterval(() => this.refreshIps(), IP_REFRESH_INTERVAL);
+    }
 
     logger.info({ ipv4, ipv6 }, 'External IPs resolved');
   }

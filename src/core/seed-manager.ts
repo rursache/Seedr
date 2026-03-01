@@ -43,10 +43,12 @@ export class SeedManager extends EventEmitter {
   private torrents = new Map<string, TorrentRuntimeState>();
   private emulatorStates = new Map<string, EmulatorState>();
   private running = false;
+  private stopping = false;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private stateSaveTimer: ReturnType<typeof setInterval> | null = null;
   private fileWatcher: FSWatcher | null = null;
   private startTime = 0;
+  private announceLocks = new Map<string, Promise<void>>(); // per-torrent announce lock
 
   async init(): Promise<void> {
     this.config = loadConfig();
@@ -73,7 +75,7 @@ export class SeedManager extends EventEmitter {
   }
 
   async start(): Promise<void> {
-    if (this.running) return;
+    if (this.running || this.stopping) return;
     this.running = true;
     this.startTime = Date.now();
 
@@ -85,7 +87,12 @@ export class SeedManager extends EventEmitter {
 
     // Register all existing torrents with bandwidth dispatcher and schedule announces
     for (const [hash, torrent] of this.torrents) {
-      torrent.seeding = false; // Reset seeding state — must announce first
+      // Reset runtime state for fresh session
+      torrent.seeding = false;
+      torrent.lastEvent = '' as AnnounceEvent;
+      torrent.consecutiveFailures = 0;
+      // Re-evaluate completed (ratio may still be met from persisted state)
+      torrent.completed = this.hasReachedRatioTarget(torrent);
       this.bandwidth.registerTorrent({
         infoHash: hash,
         seeders: torrent.seeders,
@@ -111,7 +118,8 @@ export class SeedManager extends EventEmitter {
   }
 
   async stop(): Promise<void> {
-    if (!this.running) return;
+    if (!this.running || this.stopping) return;
+    this.stopping = true;
     this.running = false;
 
     logger.info('Stopping seed manager...');
@@ -126,7 +134,7 @@ export class SeedManager extends EventEmitter {
       this.stateSaveTimer = null;
     }
 
-    // Send stopped announces for all active torrents
+    // Send stopped announces for all active torrents (with 10s timeout)
     const stopPromises: Promise<void>[] = [];
     for (const [hash, torrent] of this.torrents) {
       if (torrent.active && torrent.lastEvent !== 'stopped') {
@@ -134,8 +142,10 @@ export class SeedManager extends EventEmitter {
       }
     }
 
-    // Wait for all stopped announces (with timeout)
-    await Promise.allSettled(stopPromises);
+    if (stopPromises.length > 0) {
+      const timeout = new Promise<void>((resolve) => setTimeout(resolve, 10000));
+      await Promise.race([Promise.allSettled(stopPromises), timeout]);
+    }
 
     // Stop subsystems
     this.bandwidth.stop();
@@ -145,6 +155,7 @@ export class SeedManager extends EventEmitter {
     // Save state
     this.persistState();
 
+    this.stopping = false;
     this.emit('stopped');
     logger.info('Seed manager stopped');
   }
@@ -231,15 +242,14 @@ export class SeedManager extends EventEmitter {
         currentTracker: meta.trackers[0] || '',
         trackerIndex: 0,
         interval: 1800,
-        nextAnnounce: Date.now(),
         seeders: 0,
         leechers: 0,
-        uploadRate: 0,
         consecutiveFailures: 0,
         announceCount: seedState.announceCount,
         lastEvent: '' as AnnounceEvent,
         active,
         seeding: false, // Not seeding until first successful announce
+        completed: false, // Set when upload ratio target is reached
       };
 
       this.torrents.set(hexHash, runtimeState);
@@ -271,19 +281,20 @@ export class SeedManager extends EventEmitter {
     }
   }
 
-  removeTorrent(infoHash: string): void {
+  async removeTorrent(infoHash: string): Promise<void> {
     const torrent = this.torrents.get(infoHash);
     if (!torrent) return;
 
-    // Send stopped announce if active
-    if (torrent.active && torrent.lastEvent !== 'stopped') {
-      this.announceForTorrent(infoHash, 'stopped').catch(() => {});
+    // Send stopped announce before removing (awaited so data is still available)
+    if (this.running && torrent.active && torrent.lastEvent !== 'stopped') {
+      await this.announceForTorrent(infoHash, 'stopped').catch(() => {});
     }
 
     this.scheduler.remove(infoHash);
     this.bandwidth.removeTorrent(infoHash);
     this.torrents.delete(infoHash);
     this.emulatorStates.delete(infoHash);
+    this.announceLocks.delete(infoHash);
     delete this.state.torrents[infoHash];
 
     this.emit('torrent:removed', { infoHash });
@@ -309,7 +320,15 @@ export class SeedManager extends EventEmitter {
     }
   }
 
-  private async announceForTorrent(infoHash: string, event: AnnounceEvent): Promise<void> {
+  private announceForTorrent(infoHash: string, event: AnnounceEvent): Promise<void> {
+    // Chain through per-torrent lock to prevent concurrent announces
+    const prev = this.announceLocks.get(infoHash) || Promise.resolve();
+    const next = prev.then(() => this.doAnnounce(infoHash, event)).catch(() => {});
+    this.announceLocks.set(infoHash, next);
+    return next;
+  }
+
+  private async doAnnounce(infoHash: string, event: AnnounceEvent): Promise<void> {
     const torrent = this.torrents.get(infoHash);
     const emState = this.emulatorStates.get(infoHash);
     if (!torrent || !emState) return;
@@ -352,7 +371,14 @@ export class SeedManager extends EventEmitter {
       torrent.announceCount = torrent.seedState.announceCount;
       torrent.seeding = true; // Successfully announced — now actually seeding
 
-      // Update bandwidth dispatcher: now eligible based on peer counts
+      // Check upload ratio target — mark completed (still announces, no bandwidth)
+      if (this.hasReachedRatioTarget(torrent) && !torrent.completed) {
+        torrent.completed = true;
+        logger.info({ name: torrent.meta.name }, 'Upload ratio target reached');
+        this.emit('torrent:completed', { infoHash, name: torrent.meta.name });
+      }
+
+      // Update bandwidth dispatcher: eligible based on peer counts and completion
       const eligible = this.isTorrentEligible(torrent);
       this.bandwidth.updateTorrent(infoHash, {
         seeders: result.response.seeders,
@@ -370,22 +396,15 @@ export class SeedManager extends EventEmitter {
         leechers: result.response.leechers,
         uploaded: torrent.seedState.uploaded,
       });
-
-      // Check upload ratio target
-      if (this.hasReachedRatioTarget(torrent)) {
-        this.deactivateTorrent(infoHash, 'Upload ratio target reached');
-        return;
-      }
-
-      // Check keepTorrentWithZeroLeechers
-      if (!this.config.keepTorrentWithZeroLeechers && result.response.leechers === 0) {
-        this.deactivateTorrent(infoHash, 'No leechers');
-        return;
-      }
     } else {
       // Failed announce — not seeding, not eligible for bandwidth
       torrent.seeding = false;
       this.bandwidth.updateTorrent(infoHash, { eligible: false });
+
+      // Restore consumed bytes so they aren't lost
+      if (uploadDelta > 0) {
+        this.bandwidth.restoreAccumulated(infoHash, uploadDelta);
+      }
 
       this.emit('announce:failure', {
         infoHash,
@@ -396,7 +415,9 @@ export class SeedManager extends EventEmitter {
 
     // Schedule next announce (unless stopped)
     if (event !== 'stopped' && torrent.active) {
-      const intervalMs = torrent.interval * 1000;
+      // Clamp interval to sane range: 60s minimum, 1 day maximum
+      const clampedInterval = Math.max(60, Math.min(torrent.interval, 86400));
+      const intervalMs = clampedInterval * 1000;
       // Backoff on failures
       const backoff = result.success ? 1 : Math.min(Math.pow(2, torrent.consecutiveFailures), 32);
       this.scheduler.schedule(infoHash, intervalMs * backoff);
@@ -404,8 +425,18 @@ export class SeedManager extends EventEmitter {
   }
 
   private isTorrentEligible(torrent: TorrentRuntimeState): boolean {
+    // Completed torrents don't accumulate bandwidth
+    if (torrent.completed) {
+      return false;
+    }
+
     // skipIfNoPeers: if no peers at all, don't report upload
     if (this.config.skipIfNoPeers && torrent.seeders + torrent.leechers === 0) {
+      return false;
+    }
+
+    // keepTorrentWithZeroLeechers=false: skip bandwidth when no leechers
+    if (!this.config.keepTorrentWithZeroLeechers && torrent.leechers === 0) {
       return false;
     }
 
@@ -428,25 +459,6 @@ export class SeedManager extends EventEmitter {
     return ratio >= this.config.uploadRatioTarget;
   }
 
-  /**
-   * Deactivate a torrent and send a stopped announce.
-   */
-  private deactivateTorrent(infoHash: string, reason: string): void {
-    const torrent = this.torrents.get(infoHash);
-    if (!torrent || !torrent.active) return;
-
-    torrent.active = false;
-    torrent.seeding = false;
-    this.bandwidth.updateTorrent(infoHash, { active: false, eligible: false });
-    this.scheduler.remove(infoHash);
-
-    // Send stopped announce
-    this.announceForTorrent(infoHash, 'stopped').catch(() => {});
-
-    logger.info({ name: torrent.meta.name, reason }, 'Torrent deactivated');
-    this.emit('torrent:deactivated', { infoHash, name: torrent.meta.name, reason });
-  }
-
   private persistState(): void {
     // Update all seed states
     for (const [hash, torrent] of this.torrents) {
@@ -465,8 +477,15 @@ export class SeedManager extends EventEmitter {
     const oldClient = this.config.client;
     const oldPort = this.config.port;
 
+    // Validate client file exists before applying any changes
+    if (updates.client && updates.client !== oldClient) {
+      const clientPath = join(CLIENTS_DIR, updates.client);
+      if (!existsSync(clientPath)) {
+        throw new Error(`Client profile not found: ${updates.client}`);
+      }
+    }
+
     Object.assign(this.config, updates);
-    saveConfig(this.config);
 
     // If client changed, reload profile and regenerate peer IDs/keys
     if (updates.client && updates.client !== oldClient) {
@@ -508,45 +527,65 @@ export class SeedManager extends EventEmitter {
         for (const t of inactive) {
           t.active = true;
           const hash = infoHashToHex(t.meta.infoHash);
-          this.bandwidth.updateTorrent(hash, { active: true, eligible: true });
+          this.bandwidth.updateTorrent(hash, { active: true, eligible: this.isTorrentEligible(t) });
           this.scheduler.schedule(hash, 0);
         }
-      } else if (active.length > limit) {
+      } else if (limit > 0 && active.length > limit) {
         // Deactivate excess torrents
         const excess = active.slice(limit);
         for (const t of excess) {
           t.active = false;
           const hash = infoHashToHex(t.meta.infoHash);
-          this.bandwidth.updateTorrent(hash, { active: false });
+          this.bandwidth.updateTorrent(hash, { active: false, eligible: false });
           this.scheduler.remove(hash);
         }
-      } else if (active.length < limit && inactive.length > 0) {
+      } else if (limit > 0 && active.length < limit && inactive.length > 0) {
         // Activate more torrents
         const slotsAvailable = limit - active.length;
         const toActivate = inactive.slice(0, slotsAvailable);
         for (const t of toActivate) {
           t.active = true;
           const hash = infoHashToHex(t.meta.infoHash);
-          this.bandwidth.updateTorrent(hash, { active: true, eligible: true });
+          this.bandwidth.updateTorrent(hash, { active: true, eligible: this.isTorrentEligible(t) });
           this.scheduler.schedule(hash, 0);
         }
       }
     }
+
+    // Re-evaluate completed flag when uploadRatioTarget changes
+    if (updates.uploadRatioTarget !== undefined) {
+      for (const [hash, torrent] of this.torrents) {
+        if (torrent.completed && !this.hasReachedRatioTarget(torrent)) {
+          torrent.completed = false;
+          this.bandwidth.updateTorrent(hash, { eligible: this.isTorrentEligible(torrent) });
+          logger.info({ name: torrent.meta.name }, 'Torrent un-completed — ratio target raised');
+        }
+      }
+    }
+
+    // Re-evaluate eligibility when peer-related settings change
+    if (updates.keepTorrentWithZeroLeechers !== undefined ||
+        updates.skipIfNoPeers !== undefined ||
+        updates.minLeechers !== undefined) {
+      for (const [hash, torrent] of this.torrents) {
+        this.bandwidth.updateTorrent(hash, { eligible: this.isTorrentEligible(torrent) });
+      }
+    }
+
+    // Persist config only after all side effects have succeeded
+    saveConfig(this.config);
 
     this.emit('config:updated', this.config);
     return { ...this.config };
   }
 
   getStatus(): SeedrStatus {
-    const allocations = this.bandwidth.getAllocations();
-    const allocMap = new Map(allocations.map((a) => [a.infoHash, a.bytesPerSecond]));
-
     const torrentStates = [...this.torrents.values()].map((t) => {
       const hexHash = infoHashToHex(t.meta.infoHash);
       const unreported = this.bandwidth.getAccumulated(hexHash);
       return {
         ...t,
-        uploadRate: allocMap.get(hexHash) || 0,
+        uploadRate: this.bandwidth.getActualTorrentRate(hexHash),
         reportedUploaded: t.seedState.uploaded, // What the tracker knows
         seedState: {
           ...t.seedState,
@@ -562,6 +601,7 @@ export class SeedManager extends EventEmitter {
       port: this.connection.port,
       client: this.config.client,
       globalUploadRate: this.bandwidth.getGlobalRate(),
+      actualUploadRate: this.bandwidth.getActualRate(),
       torrents: torrentStates,
       uptime: this.running ? Date.now() - this.startTime : 0,
     };
@@ -577,7 +617,9 @@ export class SeedManager extends EventEmitter {
     leechers: number;
     active: boolean;
     seeding: boolean;
+    completed: boolean;
     tracker: string;
+    uploadRate: number;
   }> {
     return [...this.torrents.entries()].map(([hash, t]) => {
       const unreported = this.running ? this.bandwidth.getAccumulated(hash) : 0;
@@ -591,7 +633,9 @@ export class SeedManager extends EventEmitter {
         leechers: t.leechers,
         active: t.active,
         seeding: t.seeding,
+        completed: t.completed,
         tracker: t.currentTracker,
+        uploadRate: this.running ? this.bandwidth.getActualTorrentRate(hash) : 0,
       };
     });
   }
@@ -607,6 +651,17 @@ export class SeedManager extends EventEmitter {
     const event = torrent.lastEvent === '' || torrent.lastEvent === 'stopped' ? 'started' as const : '' as const;
     await this.announceForTorrent(infoHash, event);
     return true;
+  }
+
+  /**
+   * Clean up resources (file watcher, etc.) on process shutdown.
+   */
+  async destroy(): Promise<void> {
+    if (this.running) await this.stop();
+    if (this.fileWatcher) {
+      await this.fileWatcher.close();
+      this.fileWatcher = null;
+    }
   }
 
   isRunning(): boolean {

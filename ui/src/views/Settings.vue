@@ -39,6 +39,13 @@ const speedWarning = computed(() => {
   return null;
 });
 
+const seedWarning = computed(() => {
+  if (form.value.simultaneousSeed === 0) {
+    return 'Must be -1 (unlimited) or at least 1';
+  }
+  return null;
+});
+
 const formReady = computed(() => store.configLoaded && form.value.client !== '');
 
 async function save() {
@@ -126,6 +133,8 @@ async function save() {
         />
       </div>
 
+      <p v-if="seedWarning" class="text-xs text-amber-400 -mt-3">{{ seedWarning }}</p>
+
       <!-- Min Leechers -->
       <div>
         <label class="block text-sm font-medium text-gray-300 mb-1">
@@ -176,7 +185,7 @@ async function save() {
       <div class="flex items-center gap-3">
         <button
           @click="save"
-          :disabled="saving || !formReady"
+          :disabled="saving || !formReady || !!speedWarning || !!seedWarning"
           class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded font-medium text-sm transition-colors"
         >
           {{ saving ? 'Saving...' : 'Save Settings' }}

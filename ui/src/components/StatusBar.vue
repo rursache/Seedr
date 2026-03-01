@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useSeedrStore } from '../stores/seedr';
+import { formatSpeed } from '../utils/format';
 import { computed } from 'vue';
 
 const store = useSeedrStore();
@@ -28,9 +29,8 @@ const statusClass = computed(() => {
 });
 
 const speedDisplay = computed(() => {
-  if (!store.isSeeding) return '0.0 KB/s';
-  const rate = store.status?.globalUploadRate ?? 0;
-  return `${rate.toFixed(1)} KB/s`;
+  if (!store.isSeeding) return '—';
+  return formatSpeed(store.status?.actualUploadRate ?? 0);
 });
 
 const ipDisplay = computed(() => {

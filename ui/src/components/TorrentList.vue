@@ -4,7 +4,8 @@ import { formatBytes, formatSpeed } from '../utils/format';
 
 const store = useSeedrStore();
 
-function torrentStatus(torrent: { active: boolean; seeding: boolean }): { label: string; class: string } {
+function torrentStatus(torrent: { active: boolean; seeding: boolean; completed: boolean }): { label: string; class: string } {
+  if (torrent.completed) return { label: 'Completed', class: 'bg-blue-900/50 text-blue-400 border border-blue-800/50' };
   if (torrent.seeding) return { label: 'Seeding', class: 'bg-emerald-900/50 text-emerald-400 border border-emerald-800/50' };
   if (torrent.active) return { label: 'Announcing', class: 'bg-amber-900/50 text-amber-400 border border-amber-800/50' };
   return { label: 'Queued', class: 'bg-gray-800 text-gray-500 border border-gray-700/50' };
@@ -49,13 +50,13 @@ async function announce(infoHash: string) {
         <!-- Row 2: Stats -->
         <div class="flex items-center gap-4 mt-1.5 text-xs text-gray-500">
           <span>{{ formatBytes(torrent.size) }}</span>
-          <span v-if="torrent.seeding">
+          <span v-if="torrent.seeding || torrent.completed">
             <span class="text-emerald-400">S:{{ torrent.seeders }}</span>
             <span class="mx-1">/</span>
             <span class="text-amber-400">L:{{ torrent.leechers }}</span>
           </span>
           <span v-else class="text-gray-600">S:-- / L:--</span>
-          <span class="text-blue-400">{{ torrent.seeding ? formatSpeed(torrent.uploadRate || 0) : '--' }}</span>
+          <span class="text-blue-400">{{ torrent.seeding && !torrent.completed ? formatSpeed(torrent.uploadRate || 0) : '--' }}</span>
           <span title="Local simulated upload">Local: {{ formatBytes(torrent.uploaded) }}</span>
           <span class="text-gray-600" title="Reported to tracker">Reported: {{ formatBytes(torrent.reportedUploaded) }}</span>
         </div>

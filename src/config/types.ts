@@ -166,15 +166,14 @@ export interface TorrentRuntimeState {
   currentTracker: string;
   trackerIndex: number;
   interval: number;
-  nextAnnounce: number; // timestamp
   seeders: number;
   leechers: number;
-  uploadRate: number; // bytes/s currently allocated
   consecutiveFailures: number;
   announceCount: number;
   lastEvent: AnnounceEvent;
   active: boolean; // in active slot (selected for seeding)
   seeding: boolean; // at least one successful announce — actually seeding
+  completed: boolean; // upload ratio target reached — still announces but no bandwidth
 }
 
 export interface SeedrStatus {
@@ -183,7 +182,8 @@ export interface SeedrStatus {
   externalIpv6: string | null;
   port: number;
   client: string;
-  globalUploadRate: number;
+  globalUploadRate: number; // target rate in KB/s
+  actualUploadRate: number; // real throughput in bytes/s from last tick
   torrents: TorrentRuntimeState[];
   uptime: number;
 }

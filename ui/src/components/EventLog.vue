@@ -15,6 +15,7 @@ function formatTime(ts: number): string {
 function eventColor(type: string): string {
   if (type === 'started') return 'text-emerald-400';
   if (type === 'stopped') return 'text-amber-400';
+  if (type.includes('completed')) return 'text-blue-400';
   if (type.includes('success')) return 'text-emerald-400';
   if (type.includes('failure')) return 'text-red-400';
   if (type.includes('added')) return 'text-blue-400';
@@ -27,7 +28,7 @@ function isWarningOrError(event: SeedrEvent): boolean {
 }
 
 function isSuccess(event: SeedrEvent): boolean {
-  return event.type.includes('success') || event.type === 'started' || event.type.includes('added');
+  return event.type.includes('success') || event.type === 'started' || event.type.includes('added') || event.type.includes('completed');
 }
 
 const filteredEvents = computed(() => {

@@ -184,7 +184,13 @@ export async function udpAnnounce(
     let connectionId: bigint;
     const cached = connectionCache.get(cacheKey);
 
-    if (cached && Date.now() - cached.timestamp < 55000) {
+    // Prune expired cache entries (older than 60s)
+    const now = Date.now();
+    for (const [key, state] of connectionCache) {
+      if (now - state.timestamp > 60000) connectionCache.delete(key);
+    }
+
+    if (cached && now - cached.timestamp < 55000) {
       connectionId = cached.connectionId;
     } else {
       // Connect handshake with retransmission

@@ -11,7 +11,7 @@ const configSchema = z.object({
   port: z.number().int().min(0).max(65535).default(0),
   minUploadRate: z.number().min(0).default(100),
   maxUploadRate: z.number().min(0).default(500),
-  simultaneousSeed: z.number().int().min(-1).default(-1),
+  simultaneousSeed: z.number().int().min(-1).refine((v) => v !== 0, { message: 'Must be -1 (unlimited) or >= 1' }).default(-1),
   keepTorrentWithZeroLeechers: z.boolean().default(true),
   skipIfNoPeers: z.boolean().default(true),
   minLeechers: z.number().int().min(0).default(0),
@@ -120,6 +120,24 @@ export function loadConfig(): AppConfig {
     saveConfig(cfg);
     return cfg;
   }
+}
+
+/**
+ * Validate a partial config update. Returns the validated partial or throws.
+ */
+export function validateConfigUpdate(updates: unknown): Partial<AppConfig> {
+  const partialSchema = configSchema.partial();
+  const result = partialSchema.safeParse(updates);
+  if (!result.success) {
+    throw new Error(result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join(', '));
+  }
+  // Only allow known keys
+  const allowed = new Set(Object.keys(configSchema.shape));
+  const clean: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(result.data)) {
+    if (allowed.has(key)) clean[key] = value;
+  }
+  return clean as Partial<AppConfig>;
 }
 
 export function saveConfig(config: AppConfig): void {

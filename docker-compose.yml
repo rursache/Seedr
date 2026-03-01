@@ -1,6 +1,6 @@
 services:
   seedr:
-    build: .
+    image: ghcr.io/rursache/seedr:latest
     container_name: seedr
     restart: unless-stopped
     ports:

@@ -19,10 +19,12 @@ export interface BandwidthAllocation {
 /**
  * Bandwidth dispatcher: simulates upload speed distribution across torrents.
  *
- * - Picks a random global speed within min/max range, refreshed every ~20 min
- * - Weights torrents by peer ratio: (leechers/(seeders+leechers))^2 * 100 * leechers
+ * - Picks a random global speed within min/max range, drifts ±15% every ~3 min
+ * - Weights torrents by peer ratio: sqrt(leechers/(seeders+leechers)) * leechers
+ * - 10% floor per torrent to prevent starvation, 90% distributed by weight
  * - Adds +-10% jitter per tick
  * - Accumulates bytes every 1 second
+ * - Tracks actual throughput per torrent and globally for real-time display
  */
 export class BandwidthDispatcher extends EventEmitter {
   private minRate: number; // KB/s
@@ -32,6 +34,8 @@ export class BandwidthDispatcher extends EventEmitter {
   private refreshInterval: ReturnType<typeof setInterval> | null = null;
   private torrents = new Map<string, TorrentBandwidthInfo>();
   private accumulated = new Map<string, number>(); // bytes accumulated per torrent
+  private lastTickBytes: number = 0; // actual bytes dispatched in last tick
+  private lastTickPerTorrent = new Map<string, number>(); // actual bytes/s per torrent from last tick
 
   constructor(minRate: number, maxRate: number) {
     super();
@@ -59,8 +63,26 @@ export class BandwidthDispatcher extends EventEmitter {
   }
 
   /**
+   * Drift the global speed by ±15% of the current value, clamped to min/max.
+   * Produces gradual, realistic speed changes instead of sudden jumps.
+   */
+  private driftGlobalSpeed(): void {
+    if (this.maxRate <= this.minRate) {
+      this.currentRateKBs = this.minRate;
+      return;
+    }
+
+    const drift = 0.85 + Math.random() * 0.30; // 0.85 – 1.15
+    this.currentRateKBs = Math.max(this.minRate, Math.min(this.maxRate, this.currentRateKBs * drift));
+
+    logger.debug({ rateKBs: this.currentRateKBs.toFixed(1) }, 'Global speed drifted');
+    this.emit('speed:updated', this.currentRateKBs);
+  }
+
+  /**
    * Compute weight for a torrent based on peer counts.
-   * Formula: (leechers/(seeders+leechers))^2 * 100 * leechers
+   * Formula: sqrt(leechers / (seeders + leechers)) * leechers
+   * Uses sqrt instead of squaring to avoid extreme skew.
    */
   private computeWeight(info: TorrentBandwidthInfo): number {
     if (!info.eligible || !info.active) return 0;
@@ -68,17 +90,26 @@ export class BandwidthDispatcher extends EventEmitter {
     if (total === 0 || info.leechers === 0) return 0;
 
     const ratio = info.leechers / total;
-    return Math.pow(ratio, 2) * 100 * info.leechers;
+    return Math.sqrt(ratio) * info.leechers;
   }
 
   /**
    * Distribute bandwidth across torrents, returning bytes/s per torrent.
+   *
+   * Each eligible torrent gets a guaranteed minimum floor (10% of an equal share),
+   * then the remaining bandwidth is split by weight. This prevents any torrent
+   * from being starved to near-zero.
    */
   private computeAllocations(): BandwidthAllocation[] {
     const eligible = [...this.torrents.values()].filter((t) => t.eligible && t.active);
     if (eligible.length === 0) return [];
 
     const totalBytes = this.currentRateKBs * 1024; // Convert KB/s to bytes/s
+    const equalShare = totalBytes / eligible.length;
+    const floorBytes = equalShare * 0.1; // 10% of equal share as guaranteed minimum
+    const floorTotal = floorBytes * eligible.length;
+    const weightedPool = totalBytes - floorTotal; // remaining 90% distributed by weight
+
     const weights = eligible.map((t) => ({
       infoHash: t.infoHash,
       weight: this.computeWeight(t),
@@ -88,13 +119,12 @@ export class BandwidthDispatcher extends EventEmitter {
 
     if (totalWeight === 0) {
       // Equal distribution if all weights are 0
-      const perTorrent = totalBytes / eligible.length;
-      return eligible.map((t) => ({ infoHash: t.infoHash, bytesPerSecond: perTorrent }));
+      return eligible.map((t) => ({ infoHash: t.infoHash, bytesPerSecond: equalShare }));
     }
 
     return weights.map((w) => ({
       infoHash: w.infoHash,
-      bytesPerSecond: (w.weight / totalWeight) * totalBytes,
+      bytesPerSecond: floorBytes + (w.weight / totalWeight) * weightedPool,
     }));
   }
 
@@ -104,15 +134,20 @@ export class BandwidthDispatcher extends EventEmitter {
   private tick(): void {
     const allocations = this.computeAllocations();
 
+    let tickTotal = 0;
+    this.lastTickPerTorrent.clear();
     for (const alloc of allocations) {
       // Apply +-10% jitter
       const jitter = 0.9 + Math.random() * 0.2;
       const bytes = Math.floor(alloc.bytesPerSecond * jitter);
+      tickTotal += bytes;
+      this.lastTickPerTorrent.set(alloc.infoHash, bytes);
 
       const current = this.accumulated.get(alloc.infoHash) || 0;
       this.accumulated.set(alloc.infoHash, current + bytes);
     }
 
+    this.lastTickBytes = tickTotal;
     this.emit('upload:accumulated', new Map(this.accumulated));
   }
 
@@ -151,10 +186,34 @@ export class BandwidthDispatcher extends EventEmitter {
     return this.accumulated.get(infoHash) || 0;
   }
 
+  /**
+   * Restore bytes back to the accumulator (e.g., after a failed announce).
+   */
+  restoreAccumulated(infoHash: string, bytes: number): void {
+    if (bytes <= 0) return;
+    const current = this.accumulated.get(infoHash) || 0;
+    this.accumulated.set(infoHash, current + bytes);
+  }
+
   getGlobalRate(): number {
     // Return 0 if no torrents are eligible (nothing actually being uploaded)
     const hasEligible = [...this.torrents.values()].some((t) => t.eligible && t.active);
     return hasEligible ? this.currentRateKBs : 0;
+  }
+
+  /**
+   * Get the actual throughput from the last tick (bytes/s).
+   * This reflects real simulated bytes including jitter and weight distribution.
+   */
+  getActualRate(): number {
+    return this.lastTickBytes;
+  }
+
+  /**
+   * Get actual throughput for a specific torrent from the last tick (bytes/s).
+   */
+  getActualTorrentRate(infoHash: string): number {
+    return this.lastTickPerTorrent.get(infoHash) || 0;
   }
 
   getAllocations(): BandwidthAllocation[] {
@@ -169,8 +228,8 @@ export class BandwidthDispatcher extends EventEmitter {
     // Tick every second for byte accumulation
     this.tickInterval = setInterval(() => this.tick(), 1000);
 
-    // Refresh global speed every ~20 minutes
-    this.refreshInterval = setInterval(() => this.refreshGlobalSpeed(), 20 * 60 * 1000);
+    // Drift global speed every ~3 minutes for gradual, realistic changes
+    this.refreshInterval = setInterval(() => this.driftGlobalSpeed(), 3 * 60 * 1000);
 
     logger.info('Bandwidth dispatcher started');
   }

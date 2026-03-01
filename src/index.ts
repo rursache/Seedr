@@ -20,7 +20,7 @@ async function main(): Promise<void> {
   const shutdown = async (signal: string) => {
     logger.info({ signal }, 'Shutting down...');
 
-    await seedManager.stop();
+    await seedManager.destroy();
 
     io.close();
     await server.close();

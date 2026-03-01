@@ -1,8 +1,12 @@
 # Seedr
 
+![logo]()
+
 BitTorrent ratio master — emulates BT clients and reports simulated upload to private trackers.
 
 Inspired by [JOAL](https://github.com/anthonyraymond/joal), built from scratch with TypeScript and Vue.js.
+
+![screenshot](https://i.imgur.com/AwkHtsS.jpeg)
 
 ## How It Works
 
@@ -34,12 +38,11 @@ The web UI is available at `http://localhost:8080`. Drop `.torrent` files into t
 ### Docker manual
 
 ```bash
-docker build -t seedr .
 docker run -d \
   --name seedr \
   -p 8080:8080 \
   -v ./data:/data \
-  seedr
+  ghcr.io/rursache/seedr:latest
 ```
 
 ### Local development

@@ -28,6 +28,7 @@ export function setupWebSocket(io: Server, seedManager: SeedManager): void {
   const events = [
     'torrent:added',
     'torrent:removed',
+    'torrent:completed',
     'announce:success',
     'announce:failure',
     'config:updated',

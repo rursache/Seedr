@@ -211,4 +211,28 @@ describe('BandwidthDispatcher', () => {
       dispatcher.updateTorrent('nonexistent', { eligible: true });
     }).not.toThrow();
   });
+
+  it('should return 0 actual rate before any ticks', () => {
+    expect(dispatcher.getActualRate()).toBe(0);
+  });
+
+  it('should track actual throughput after ticks', () => {
+    dispatcher.registerTorrent({
+      infoHash: 'aaa',
+      seeders: 5,
+      leechers: 10,
+      active: true,
+      eligible: true,
+    });
+
+    dispatcher.start();
+
+    return new Promise<void>((resolve) => {
+      setTimeout(() => {
+        const rate = dispatcher.getActualRate();
+        expect(rate).toBeGreaterThan(0);
+        resolve();
+      }, 1500);
+    });
+  });
 });
