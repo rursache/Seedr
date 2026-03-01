@@ -35,9 +35,6 @@ docker run -d \
   --name seedr \
   -p 8080:8080 \
   -v ./data:/data \
-  -e NODE_ENV=production \
-  -e SEEDR_DATA_DIR=/data \
-  -e WEB_PORT=8080 \
   seedr
 ```
 
@@ -88,23 +85,6 @@ All configuration is managed through the web UI Settings panel. Settings are per
 | `SEEDR_TORRENTS_DIR` | `$SEEDR_DATA_DIR/torrents` | Directory for `.torrent` files (watched for changes) |
 | `WEB_PORT` | `8080` | Web UI and API port |
 | `LOG_LEVEL` | `info` | Log level (debug, info, warn, error) |
-
-## Data Directory Structure
-
-```
-data/
-  config.json          # Application settings
-  state.json           # Persisted upload state (survives restarts)
-  clients/             # BT client profile files (.client)
-    qbittorrent-5.1.4.client
-    deluge-2.1.1.client
-    transmission-3.00.client
-    bittorrent-7.10.3_44429.client
-    utorrent-3.5.4_44498.client
-  torrents/            # Drop .torrent files here
-```
-
-Client profiles are automatically seeded on first run. The torrents directory is watched for file changes — adding or removing `.torrent` files is reflected in the UI immediately.
 
 ## Client Profiles
 
