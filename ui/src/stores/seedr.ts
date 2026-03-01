@@ -124,8 +124,14 @@ export const useSeedrStore = defineStore('seedr', () => {
 
   socket.on('announce:success', (data: any) => addEvent('announce:success', data));
   socket.on('announce:failure', (data: any) => addEvent('announce:failure', data));
-  socket.on('torrent:added', (data: any) => addEvent('torrent:added', data));
-  socket.on('torrent:removed', (data: any) => addEvent('torrent:removed', data));
+  socket.on('torrent:added', (data: any) => {
+    addEvent('torrent:added', data);
+    fetchTorrents(); // Refresh torrent list when a new torrent is detected
+  });
+  socket.on('torrent:removed', (data: any) => {
+    addEvent('torrent:removed', data);
+    fetchTorrents(); // Refresh torrent list when a torrent is removed
+  });
 
   socket.on('stopped', () => {
     addEvent('stopped', {});

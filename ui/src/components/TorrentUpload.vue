@@ -66,35 +66,42 @@ function onDrop(e: DragEvent) {
 </script>
 
 <template>
-  <div class="flex items-center gap-3">
-    <div
-      @dragover.prevent="dragOver = true"
-      @dragleave="dragOver = false"
-      @drop.prevent="onDrop"
+  <div
+    class="relative"
+    @dragover.prevent="dragOver = true"
+    @dragleave="dragOver = false"
+    @drop.prevent="onDrop"
+  >
+    <button
+      @click="openFilePicker"
+      :disabled="uploading"
+      class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 disabled:opacity-50 text-gray-300 hover:text-white rounded-md text-xs font-medium transition-colors"
+      :class="{ 'border-emerald-500 bg-emerald-900/20': dragOver }"
     >
-      <button
-        @click="openFilePicker"
-        :disabled="uploading"
-        class="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 disabled:opacity-50 text-gray-300 rounded font-medium text-sm transition-colors"
-        :class="{ 'border-emerald-500 bg-emerald-900/20': dragOver }"
+      {{ uploading ? 'Uploading...' : 'Add Torrent' }}
+    </button>
+    <input
+      ref="fileInput"
+      type="file"
+      accept=".torrent"
+      multiple
+      class="hidden"
+      @change="onFileChange"
+    />
+    <!-- Upload feedback toast -->
+    <Transition
+      enter-active-class="transition-all duration-200"
+      leave-active-class="transition-all duration-200"
+      enter-from-class="opacity-0 translate-y-1"
+      leave-to-class="opacity-0 translate-y-1"
+    >
+      <span
+        v-if="message"
+        class="absolute top-full right-0 mt-2 whitespace-nowrap text-xs px-2 py-1 rounded shadow-lg"
+        :class="message.error ? 'bg-red-900/90 text-red-300' : 'bg-emerald-900/90 text-emerald-300'"
       >
-        {{ uploading ? 'Uploading...' : 'Upload .torrent' }}
-      </button>
-      <input
-        ref="fileInput"
-        type="file"
-        accept=".torrent"
-        multiple
-        class="hidden"
-        @change="onFileChange"
-      />
-    </div>
-    <span
-      v-if="message"
-      class="text-sm"
-      :class="message.error ? 'text-red-400' : 'text-emerald-400'"
-    >
-      {{ message.text }}
-    </span>
+        {{ message.text }}
+      </span>
+    </Transition>
   </div>
 </template>

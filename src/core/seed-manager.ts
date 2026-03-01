@@ -61,6 +61,11 @@ export class SeedManager extends EventEmitter {
       this.config.maxUploadRate
     );
 
+    // Scan torrents directory and start file watcher immediately
+    // so the UI always reflects what's in the torrents folder
+    this.scanTorrents();
+    this.startFileWatcher();
+
     logger.info(
       { client: this.config.client, port: this.config.port },
       'SeedManager initialized'
@@ -78,8 +83,12 @@ export class SeedManager extends EventEmitter {
     // Start bandwidth dispatcher
     this.bandwidth.start();
 
-    // Scan torrents directory
-    this.scanTorrents();
+    // Register all existing torrents with bandwidth dispatcher and schedule announces
+    for (const [hash, torrent] of this.torrents) {
+      if (torrent.active) {
+        this.scheduler.schedule(hash, 0); // Schedule initial announce
+      }
+    }
 
     // Start scheduler polling
     this.pollTimer = setInterval(() => this.pollScheduler(), POLL_INTERVAL);
@@ -88,9 +97,6 @@ export class SeedManager extends EventEmitter {
     this.stateSaveTimer = setInterval(() => {
       this.persistState();
     }, STATE_SAVE_INTERVAL);
-
-    // Start file watcher on torrents directory
-    this.startFileWatcher();
 
     this.emit('started');
     logger.info({ port: this.connection.port, ip: this.connection.externalIp }, 'Seeding started');
@@ -110,12 +116,6 @@ export class SeedManager extends EventEmitter {
     if (this.stateSaveTimer) {
       clearInterval(this.stateSaveTimer);
       this.stateSaveTimer = null;
-    }
-
-    // Stop file watcher
-    if (this.fileWatcher) {
-      await this.fileWatcher.close();
-      this.fileWatcher = null;
     }
 
     // Send stopped announces for all active torrents
@@ -236,18 +236,20 @@ export class SeedManager extends EventEmitter {
       this.torrents.set(hexHash, runtimeState);
       this.emulatorStates.set(hexHash, emulatorState);
 
-      // Register with bandwidth dispatcher
-      this.bandwidth.registerTorrent({
-        infoHash: hexHash,
-        seeders: 0,
-        leechers: 0,
-        active,
-        eligible: active,
-      });
+      // If engine is running, register with bandwidth dispatcher and schedule announce
+      if (this.running) {
+        this.bandwidth.registerTorrent({
+          infoHash: hexHash,
+          seeders: 0,
+          leechers: 0,
+          active,
+          eligible: active,
+        });
 
-      // Schedule initial announce (started event)
-      if (active) {
-        this.scheduler.schedule(hexHash, 0); // Immediately
+        // Schedule initial announce (started event)
+        if (active) {
+          this.scheduler.schedule(hexHash, 0); // Immediately
+        }
       }
 
       this.emit('torrent:added', { infoHash: hexHash, name: meta.name });
