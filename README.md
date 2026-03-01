@@ -30,10 +30,12 @@ Yes. But like anything in life, don't abuse it. Don't upload thousands of torren
 ### Docker (recommended)
 
 ```bash
+mkdir seedr && cd seedr
+curl -O https://raw.githubusercontent.com/rursache/Seedr/master/docker-compose.yml
 docker compose up -d
 ```
 
-The web UI is available at `http://localhost:8080`. Drop `.torrent` files into the `data/torrents/` directory or upload via the dashboard.
+The web UI is available at `http://localhost:6688`. Drop `.torrent` files into the `data/torrents/` directory or upload via the dashboard.
 
 ### Docker manual
 
