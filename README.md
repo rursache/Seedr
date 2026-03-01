@@ -1,12 +1,12 @@
 # Seedr
 
-<img src="https://i.imgur.com/j4MJw55.png" alt="logo" width="150">
+<img src="assets/logo.png" alt="logo" width="150">
 
 BitTorrent ratio master - emulates BT clients and reports simulated upload to private trackers.
 
 Inspired by [JOAL](https://github.com/anthonyraymond/joal), built from scratch with TypeScript and Vue.js.
 
-![screenshot](https://i.imgur.com/EX26wMD.jpeg)
+![screenshot](assets/screenshot.jpeg)
 
 ## How It Works
 
