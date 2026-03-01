@@ -9,7 +9,7 @@ RUN npm ci
 COPY tsconfig.json ./
 COPY src/ src/
 COPY scripts/ scripts/
-RUN VERSION=${VERSION} COMMIT=${COMMIT} BUILD_DATE=${BUILD_DATE} sh scripts/version.sh && npx tsc
+RUN VERSION=${VERSION} COMMIT=${COMMIT} BUILD_DATE=${BUILD_DATE} sh scripts/version.sh && npx tsc && cp src/version.json dist/version.json
 
 ## Build stage - Frontend
 FROM node:22-alpine AS build-ui
