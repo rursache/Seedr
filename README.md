@@ -69,6 +69,12 @@ The dev server starts the backend on port 8080 with hot reload. The frontend dev
 npm run build && npm start
 ```
 
+To preview the UI with mock data (no real network activity):
+
+```bash
+npm run build && npm start -- --demo
+```
+
 ## Port Forwarding
 
 The BitTorrent port (default `49152`) is the port that trackers and peers use to verify your client is reachable. This is the port you need to forward on your router/firewall, not the web UI port. The web UI port (`8080`) should stay local and not be exposed to the internet. If you really want to expose the WebUI port as well, make sure to enable auth!

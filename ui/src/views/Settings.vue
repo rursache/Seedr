@@ -2,6 +2,8 @@
 import { ref, watch, computed, onUnmounted } from 'vue';
 import { useSeedrStore } from '../stores/seedr';
 
+const emit = defineEmits<{ close: [] }>();
+
 const store = useSeedrStore();
 
 const form = ref({
@@ -62,13 +64,16 @@ async function save() {
   try {
     await store.updateConfig(form.value);
     saveMessage.value = { text: 'Settings saved', error: false };
+    savedTimer = setTimeout(() => { saveMessage.value = null; emit('close'); }, 800);
   } catch {
     saveMessage.value = { text: 'Failed to save settings', error: true };
+    savedTimer = setTimeout(() => { saveMessage.value = null; }, 3000);
   } finally {
     saving.value = false;
-    savedTimer = setTimeout(() => { saveMessage.value = null; }, 3000);
   }
 }
+
+defineExpose({ save, saving, saveMessage, formReady, speedWarning, seedWarning });
 </script>
 
 <template>
@@ -241,30 +246,6 @@ async function save() {
 
       </div>
 
-      <!-- Save -->
-      <div class="border-t border-gray-800 pt-5 flex items-center gap-3">
-        <button
-          @click="save"
-          :disabled="saving || !formReady || !!speedWarning || !!seedWarning"
-          class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg font-medium text-sm transition-colors"
-        >
-          {{ saving ? 'Saving...' : 'Save Settings' }}
-        </button>
-        <Transition
-          enter-active-class="transition-opacity duration-200"
-          leave-active-class="transition-opacity duration-200"
-          enter-from-class="opacity-0"
-          leave-to-class="opacity-0"
-        >
-          <span
-            v-if="saveMessage"
-            class="text-sm"
-            :class="saveMessage.error ? 'text-red-400' : 'text-emerald-400'"
-          >
-            {{ saveMessage.text }}
-          </span>
-        </Transition>
-      </div>
     </div>
   </div>
 </template>

@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import { useSeedrStore } from './stores/seedr';
-import { onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref, computed } from 'vue';
 import Dashboard from './views/Dashboard.vue';
 import Settings from './views/Settings.vue';
 import TorrentUpload from './components/TorrentUpload.vue';
 
 const store = useSeedrStore();
 const showSettings = ref(false);
+
+// Settings modal save via exposed ref
+const settingsRef = ref<InstanceType<typeof Settings> | null>(null);
+const settingsSaving = computed(() => settingsRef.value?.saving ?? false);
+const settingsSaveMessage = computed(() => settingsRef.value?.saveMessage ?? null);
+function saveSettings() { settingsRef.value?.save(); }
 
 // Global drag-and-drop
 const dragging = ref(false);
@@ -96,7 +102,7 @@ onUnmounted(() => {
           <!-- Left: Logo + connection status -->
           <div class="flex items-center gap-4">
             <img src="/favicon.svg" alt="Seedr" class="h-6 w-6" />
-            <span class="text-lg font-bold text-emerald-400 tracking-tight">Seedr</span>
+            <span class="text-lg font-bold text-white tracking-tight">Seedr</span>
             <span
               class="flex items-center gap-1.5 text-xs"
               :class="store.connected ? 'text-emerald-400/70' : 'text-red-400/70'"
@@ -210,15 +216,38 @@ onUnmounted(() => {
             <div class="relative bg-gray-950 border border-gray-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[84vh] overflow-y-auto mx-4">
               <div class="sticky top-0 z-10 bg-gray-950/95 backdrop-blur-sm border-b border-gray-800 px-6 py-4 flex items-center justify-between">
                 <h2 class="text-lg font-bold text-white">Settings</h2>
-                <button
-                  @click="showSettings = false"
-                  class="text-gray-500 hover:text-white transition-colors text-xl leading-none p-1"
-                >
-                  &times;
-                </button>
+                <div class="flex items-center gap-3">
+                  <Transition
+                    enter-active-class="transition-opacity duration-200"
+                    leave-active-class="transition-opacity duration-200"
+                    enter-from-class="opacity-0"
+                    leave-to-class="opacity-0"
+                  >
+                    <span
+                      v-if="settingsSaveMessage"
+                      class="text-sm"
+                      :class="settingsSaveMessage.error ? 'text-red-400' : 'text-emerald-400'"
+                    >
+                      {{ settingsSaveMessage.text }}
+                    </span>
+                  </Transition>
+                  <button
+                    @click="showSettings = false"
+                    class="px-4 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 hover:text-white rounded-lg text-xs font-medium transition-colors"
+                  >
+                    Close
+                  </button>
+                  <button
+                    @click="saveSettings"
+                    :disabled="settingsSaving"
+                    class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 border border-emerald-600 text-white rounded-lg text-xs font-medium transition-colors"
+                  >
+                    {{ settingsSaving ? 'Saving...' : 'Save' }}
+                  </button>
+                </div>
               </div>
               <div class="p-6">
-                <Settings />
+                <Settings ref="settingsRef" @close="showSettings = false" />
               </div>
             </div>
           </Transition>
