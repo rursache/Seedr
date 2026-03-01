@@ -17,6 +17,10 @@ Seedr loads `.torrent` files, connects to their trackers, and announces simulate
 - Docker support with persistent data volume
 - Configurable upload ratio targets, simultaneous seed limits, and more
 
+## Is It Safe?
+
+Yes. But just like anything in life, don't abuse it. Don't upload 1,000 torrents and set a 2 GB/s upload speed. Trackers can't distinguish traffic from Seedr vs. actual qBittorrent traffic, for example. But they can see that some idiot is uploading on torrents he never downloaded and at impossible speeds.
+
 ## Quick Start
 
 ### Docker (recommended)
