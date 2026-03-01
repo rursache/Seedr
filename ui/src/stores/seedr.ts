@@ -61,6 +61,12 @@ export interface SeedrEvent {
 
 let nextEventId = 1;
 
+interface VersionInfo {
+  version: string;
+  commit: string;
+  buildDate: string;
+}
+
 export const useSeedrStore = defineStore('seedr', () => {
   const config = ref<AppConfig | null>(null);
   const configLoaded = ref(false);
@@ -69,6 +75,7 @@ export const useSeedrStore = defineStore('seedr', () => {
   const clients = ref<string[]>([]);
   const events = ref<SeedrEvent[]>([]);
   const actionPending = ref(false);
+  const versionInfo = ref<VersionInfo | null>(null);
 
   const { socket, connected } = useWebSocket();
 
@@ -154,6 +161,16 @@ export const useSeedrStore = defineStore('seedr', () => {
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     config.value = await res.json();
+  }
+
+  async function fetchVersion() {
+    try {
+      const res = await fetch('/api/version');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      versionInfo.value = await res.json();
+    } catch (e) {
+      console.error('Failed to fetch version:', e);
+    }
   }
 
   async function fetchClients() {
@@ -287,8 +304,10 @@ export const useSeedrStore = defineStore('seedr', () => {
     isTorrentEligible,
     actionPending,
     portCheck,
+    versionInfo,
     fetchConfig,
     updateConfig,
+    fetchVersion,
     fetchClients,
     fetchStatus,
     fetchTorrents,

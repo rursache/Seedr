@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc && cd ui && npm run build",
+    "build": "sh scripts/version.sh && tsc && cp src/version.json dist/version.json && cd ui && npm run build",
     "build:backend": "tsc",
     "build:ui": "cd ui && npm run build",
     "start": "node dist/index.js",

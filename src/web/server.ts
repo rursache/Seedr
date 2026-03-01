@@ -12,6 +12,7 @@ import { registerTorrentRoutes } from './routes/torrent-routes.js';
 import { registerControlRoutes } from './routes/control-routes.js';
 import { setupWebSocket } from './websocket.js';
 import { createLogger } from '../utils/logger.js';
+import { getVersionInfo } from '../utils/version.js';
 
 const logger = createLogger('web');
 
@@ -95,6 +96,9 @@ export async function startWebServer(seedManager: SeedManager) {
       return reply.sendFile('index.html');
     });
   }
+
+  // Version endpoint
+  server.get('/api/version', async () => getVersionInfo());
 
   // Register API routes
   registerConfigRoutes(server, seedManager);

@@ -1,11 +1,15 @@
 ## Build stage - Backend
 FROM node:22-alpine AS build-backend
 WORKDIR /app
+ARG VERSION=dev
+ARG COMMIT=unknown
+ARG BUILD_DATE=unknown
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY tsconfig.json ./
 COPY src/ src/
-RUN npx tsc
+COPY scripts/ scripts/
+RUN VERSION=${VERSION} COMMIT=${COMMIT} BUILD_DATE=${BUILD_DATE} sh scripts/version.sh && npx tsc
 
 ## Build stage - Frontend
 FROM node:22-alpine AS build-ui

@@ -82,6 +82,7 @@ onMounted(() => {
   store.fetchClients();
   store.fetchStatus();
   store.fetchTorrents();
+  store.fetchVersion();
 
   document.addEventListener('dragenter', onDragEnter);
 });
@@ -153,6 +154,11 @@ onUnmounted(() => {
     <main class="max-w-7xl mx-auto px-4 py-6">
       <Dashboard />
     </main>
+
+    <!-- Version footer -->
+    <footer v-if="store.versionInfo" class="max-w-7xl mx-auto px-4 pb-4 text-center">
+      <span class="text-xs text-gray-700">{{ store.versionInfo.version }} &middot; {{ store.versionInfo.buildDate }}</span>
+    </footer>
 
     <!-- Drop feedback toast -->
     <Transition
