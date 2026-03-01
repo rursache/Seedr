@@ -31,9 +31,9 @@ const stateSchema = z.object({
   lastSaved: z.number(),
 });
 
-export const DATA_DIR = resolve(process.env['SEEDR_DATA_DIR'] || 'data');
-export const CLIENTS_DIR = resolve(process.env['SEEDR_CLIENTS_DIR'] || join(DATA_DIR, 'clients'));
-export const TORRENTS_DIR = resolve(process.env['SEEDR_TORRENTS_DIR'] || join(DATA_DIR, 'torrents'));
+export const DATA_DIR = resolve(process.env['DATA_DIR'] || 'data');
+export const CLIENTS_DIR = resolve(process.env['CLIENTS_DIR'] || join(DATA_DIR, 'clients'));
+export const TORRENTS_DIR = resolve(process.env['TORRENTS_DIR'] || join(DATA_DIR, 'torrents'));
 const CONFIG_PATH = join(DATA_DIR, 'config.json');
 const STATE_PATH = join(DATA_DIR, 'state.json');
 

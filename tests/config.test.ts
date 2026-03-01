@@ -9,9 +9,9 @@ const TEST_CLIENTS_DIR = join(TEST_DATA_DIR, 'clients');
 const TEST_TORRENTS_DIR = join(TEST_DATA_DIR, 'torrents');
 
 // Set env vars BEFORE importing the module
-process.env['SEEDR_DATA_DIR'] = TEST_DATA_DIR;
-process.env['SEEDR_CLIENTS_DIR'] = TEST_CLIENTS_DIR;
-process.env['SEEDR_TORRENTS_DIR'] = TEST_TORRENTS_DIR;
+process.env['DATA_DIR'] = TEST_DATA_DIR;
+process.env['CLIENTS_DIR'] = TEST_CLIENTS_DIR;
+process.env['TORRENTS_DIR'] = TEST_TORRENTS_DIR;
 
 // Dynamic import to pick up env vars
 const {

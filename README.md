@@ -23,7 +23,7 @@ Seedr loads `.torrent` files, connects to their trackers, and announces simulate
 
 ## Is It Safe?
 
-Yes. But just like anything in life, don't abuse it. Don't upload 1,000 torrents and set a 2 GB/s upload speed. Trackers can't distinguish traffic from Seedr vs. actual qBittorrent traffic, for example. But they can see that some idiot is uploading on torrents he never downloaded and at impossible speeds.
+Yes. But like anything in life, don't abuse it. Don't upload thousands of torrents simultaneously with unrealistic upload speeds like 2 GB/s. While trackers can't tell the difference between Seedr and qBittorrent traffic, they can detect when someone's uploading content they never actually downloaded at speeds that are physically impossible for their connection.
 
 ## Quick Start
 
@@ -64,13 +64,12 @@ The dev server starts the backend on port 8080 with hot reload. The frontend dev
 ### Production build
 
 ```bash
-npm run build
-npm start
+npm run build && npm start
 ```
 
 ## Port Forwarding
 
-The BitTorrent port (default `49152`) is the port that trackers and peers use to verify your client is reachable. This is the port you need to forward on your router/firewall - not the web UI port. The web UI port (`8080`) should stay local and not be exposed to the internet.
+The BitTorrent port (default `49152`) is the port that trackers and peers use to verify your client is reachable. This is the port you need to forward on your router/firewall, not the web UI port. The web UI port (`8080`) should stay local and not be exposed to the internet. If you really want to expose the WebUI port as well, make sure to enable auth!
 
 ## Configuration
 
@@ -78,8 +77,8 @@ All configuration is managed through the web UI Settings panel. Settings are per
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| Client Profile | qbittorrent-5.1.4 | Which BT client to emulate |
-| Port | 49152 | Listening port announced to trackers (0 = random 49152-65534) |
+| Client Profile | qbittorrent-latest | Which BT client to emulate |
+| Port | 49152 | Listening port announced to trackers |
 | Min Upload Rate | 100 KB/s | Minimum simulated upload speed |
 | Max Upload Rate | 500 KB/s | Maximum simulated upload speed |
 | Simultaneous Seeds | -1 (all) | How many torrents to seed at once (-1 = unlimited) |
@@ -92,35 +91,36 @@ All configuration is managed through the web UI Settings panel. Settings are per
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PUID` | `1000` | User ID to run as (for volume permissions) |
-| `PGID` | `1000` | Group ID to run as (for volume permissions) |
-| `SEEDR_DATA_DIR` | `data` | Root directory for config, state, torrents, and client profiles |
-| `SEEDR_CLIENTS_DIR` | `$SEEDR_DATA_DIR/clients` | Directory containing `.client` profile files |
-| `SEEDR_TORRENTS_DIR` | `$SEEDR_DATA_DIR/torrents` | Directory for `.torrent` files (watched for changes) |
+| `PUID` | `1000` | User ID to run as (for volume permissions, optional) |
+| `PGID` | `1000` | Group ID to run as (for volume permissions, optional) |
 | `WEB_PORT` | `8080` | Web UI and API port |
+| `USERNAME` | *(unset)* | Username for web UI authentication (optional) |
+| `PASSWORD` | *(unset)* | Password for web UI authentication (optional) |
+| `DATA_DIR` | `data` | Root directory for config, state, torrents, and client profiles |
+| `CLIENTS_DIR` | `$DATA_DIR/clients` | Directory containing `.client` profile files |
+| `TORRENTS_DIR` | `$DATA_DIR/torrents` | Directory for `.torrent` files (watched for changes) |
 | `LOG_LEVEL` | `info` | Log level (debug, info, warn, error) |
-| `SEEDR_USERNAME` | *(unset)* | Username for web UI authentication (optional) |
-| `SEEDR_PASSWORD` | *(unset)* | Password for web UI authentication (optional) |
+
 
 ## Authentication
 
 The web UI and API have **no authentication by default** - this is intentional since Seedr is designed to run locally or in Docker with only the BitTorrent port exposed to the internet.
 
-To enable optional Basic Auth, set both `SEEDR_USERNAME` and `SEEDR_PASSWORD`:
+To enable optional Basic Auth, set both `USERNAME` and `PASSWORD`:
 
 ```bash
 # Docker Compose - uncomment the environment section in docker-compose.yml
 environment:
-  SEEDR_USERNAME: admin
-  SEEDR_PASSWORD: changeme
+  USERNAME: admin
+  PASSWORD: changeme
 
 # Docker manual
 docker run -d --name seedr -p 8080:8080 -v ./data:/data \
-  -e SEEDR_USERNAME=admin -e SEEDR_PASSWORD=changeme \
+  -e USERNAME=admin -e PASSWORD=changeme \
   ghcr.io/rursache/seedr:latest
 
 # Local
-SEEDR_USERNAME=admin SEEDR_PASSWORD=changeme npm start
+USERNAME=admin PASSWORD=changeme npm start
 ```
 
 When enabled, the browser will prompt for credentials when accessing the UI. All API endpoints and WebSocket connections are protected. If only one of the two variables is set, authentication remains disabled.
@@ -145,7 +145,7 @@ Profiles are stored in the `data/clients/` directory and can be selected from th
 | `POST` | `/api/control/start` | Start seeding |
 | `POST` | `/api/control/stop` | Stop seeding |
 | `GET` | `/api/control/status` | Get engine status |
-| `GET` | `/api/control/port-check` | Check port reachability |
+| `POST` | `/api/control/port-check` | Check port reachability |
 
 Real-time updates are available via Socket.IO on the same port.
 
@@ -158,4 +158,4 @@ npm run test:watch    # Watch mode
 
 ## License
 
-MIT
+This project is licensed under the [MIT License](LICENSE).

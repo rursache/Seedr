@@ -19,8 +19,8 @@ const HOST = process.env['HOST'] || '0.0.0.0';
 const PORT = parseInt(process.env['WEB_PORT'] || '8080', 10);
 
 // Optional Basic Auth — enabled only when both env vars are set
-const AUTH_USERNAME = process.env['SEEDR_USERNAME'] || '';
-const AUTH_PASSWORD = process.env['SEEDR_PASSWORD'] || '';
+const AUTH_USERNAME = process.env['USERNAME'] || '';
+const AUTH_PASSWORD = process.env['PASSWORD'] || '';
 const AUTH_ENABLED = AUTH_USERNAME.length > 0 && AUTH_PASSWORD.length > 0;
 
 export interface AuthConfig {

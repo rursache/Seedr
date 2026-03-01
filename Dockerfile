@@ -45,7 +45,7 @@ COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 ENV NODE_ENV=production
-ENV SEEDR_DATA_DIR=/data
+ENV DATA_DIR=/data
 ENV WEB_PORT=8080
 
 EXPOSE 8080
