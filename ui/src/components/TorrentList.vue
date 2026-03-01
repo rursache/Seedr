@@ -78,8 +78,8 @@ const groupedTorrents = computed(() => {
     groups.get(host)!.push(t);
   }
   return [...groups.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([host, torrents]) => ({ host, name: trackerName(host), torrents }));
+    .map(([host, torrents]) => ({ host, name: trackerName(host), torrents }))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 });
 
 function sortIndicator(field: SortField): string {
