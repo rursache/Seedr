@@ -4,7 +4,7 @@ import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('websocket');
 
-const BROADCAST_INTERVAL = 5000; // Broadcast full state every 5 seconds
+const BROADCAST_INTERVAL = 1000; // Broadcast full state every second
 const MAX_RECENT_EVENTS = 50;
 
 interface RecentEvent {
