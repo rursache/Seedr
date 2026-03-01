@@ -1,14 +1,15 @@
+name: seedr
 services:
-  seedr:
-    image: ghcr.io/rursache/seedr:latest
-    container_name: seedr
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./data:/data
-    environment:
-      PUID: 1000
-      PGID: 1000
-      # SEEDR_USERNAME: admin
-      # SEEDR_PASSWORD: changeme
+    seedr:
+        container_name: seedr
+        restart: unless-stopped
+        network_mode: bridge
+        ports:
+            - 6688:8080
+        environment:
+            - PUID=1000
+            - PGID=1000
+            - TZ=Europe/Bucharest
+        volumes:
+            - ./data:/data
+        image: ghcr.io/rursache/seedr:latest
