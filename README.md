@@ -2,7 +2,7 @@
 
 <img src="https://i.imgur.com/j4MJw55.png" alt="logo" width="150">
 
-BitTorrent ratio master — emulates BT clients and reports simulated upload to private trackers.
+BitTorrent ratio master - emulates BT clients and reports simulated upload to private trackers.
 
 Inspired by [JOAL](https://github.com/anthonyraymond/joal), built from scratch with TypeScript and Vue.js.
 
@@ -10,7 +10,7 @@ Inspired by [JOAL](https://github.com/anthonyraymond/joal), built from scratch w
 
 ## How It Works
 
-Seedr loads `.torrent` files, connects to their trackers, and announces simulated upload data — without actually downloading or uploading any content. It emulates real BitTorrent clients (qBittorrent, Deluge, Transmission, uTorrent, BitTorrent) by replicating their exact announce behavior: peer IDs, key generation, URL encoding, headers, and query parameter ordering.
+Seedr loads `.torrent` files, connects to their trackers, and announces simulated upload data - without actually downloading or uploading any content. It emulates real BitTorrent clients (qBittorrent, Deluge, Transmission, uTorrent, BitTorrent) by replicating their exact announce behavior: peer IDs, key generation, URL encoding, headers, and query parameter ordering.
 
 **Key features:**
 - 5 built-in client profiles with accurate protocol emulation
@@ -97,12 +97,12 @@ All configuration is managed through the web UI Settings panel. Settings are per
 
 ## Authentication
 
-The web UI and API have **no authentication by default** — this is intentional since Seedr is designed to run locally or in Docker with only the BitTorrent port exposed to the internet.
+The web UI and API have **no authentication by default** - this is intentional since Seedr is designed to run locally or in Docker with only the BitTorrent port exposed to the internet.
 
 To enable optional Basic Auth, set both `SEEDR_USERNAME` and `SEEDR_PASSWORD`:
 
 ```bash
-# Docker Compose — uncomment the environment section in docker-compose.yml
+# Docker Compose - uncomment the environment section in docker-compose.yml
 environment:
   SEEDR_USERNAME: admin
   SEEDR_PASSWORD: changeme
@@ -122,11 +122,11 @@ When enabled, the browser will prompt for credentials when accessing the UI. All
 
 Each `.client` file defines how Seedr emulates a specific BitTorrent client:
 
-- **qBittorrent 5.1.4** — HASH_NO_LEADING_ZERO key, REGEX peer ID
-- **Deluge 2.1.1** — HASH_NO_LEADING_ZERO key, REGEX peer ID
-- **Transmission 3.00** — DIGIT_RANGE_HEX key, RANDOM_POOL_WITH_CHECKSUM peer ID
-- **BitTorrent 7.10.3** — HASH key, REGEX peer ID with URL encoding
-- **uTorrent 3.5.4** — HASH key, REGEX peer ID with URL encoding
+- **qBittorrent 5.1.4** - HASH_NO_LEADING_ZERO key, REGEX peer ID
+- **Deluge 2.1.1** - HASH_NO_LEADING_ZERO key, REGEX peer ID
+- **Transmission 3.00** - DIGIT_RANGE_HEX key, RANDOM_POOL_WITH_CHECKSUM peer ID
+- **BitTorrent 7.10.3** - HASH key, REGEX peer ID with URL encoding
+- **uTorrent 3.5.4** - HASH key, REGEX peer ID with URL encoding
 
 ## API
 
