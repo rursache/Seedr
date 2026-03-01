@@ -209,6 +209,14 @@ export const useSeedrStore = defineStore('seedr', () => {
     return result;
   }
 
+  async function forceAnnounce(infoHash: string) {
+    try {
+      await fetch(`/api/torrents/${infoHash}/announce`, { method: 'POST' });
+    } catch {
+      // Silently fail — result will show in events
+    }
+  }
+
   async function removeTorrent(infoHash: string) {
     torrents.value = torrents.value.filter((t) => t.infoHash !== infoHash);
     try {
@@ -268,6 +276,7 @@ export const useSeedrStore = defineStore('seedr', () => {
     fetchStatus,
     fetchTorrents,
     uploadTorrent,
+    forceAnnounce,
     removeTorrent,
     startSeeding,
     stopSeeding,

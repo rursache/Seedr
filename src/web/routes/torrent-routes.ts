@@ -50,4 +50,22 @@ export function registerTorrentRoutes(server: FastifyInstance, seedManager: Seed
       return { success: true };
     }
   );
+
+  server.post<{ Params: { infoHash: string } }>(
+    '/api/torrents/:infoHash/announce',
+    async (request, reply) => {
+      const { infoHash } = request.params;
+
+      if (!seedManager.isRunning()) {
+        return reply.status(400).send({ error: 'Engine is not running' });
+      }
+
+      const ok = await seedManager.forceAnnounce(infoHash);
+      if (!ok) {
+        return reply.status(404).send({ error: 'Torrent not found or not active' });
+      }
+
+      return { success: true };
+    }
+  );
 }

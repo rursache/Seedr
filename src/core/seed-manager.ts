@@ -596,6 +596,19 @@ export class SeedManager extends EventEmitter {
     });
   }
 
+  /**
+   * Force an immediate announce for a specific torrent.
+   */
+  async forceAnnounce(infoHash: string): Promise<boolean> {
+    if (!this.running) return false;
+    const torrent = this.torrents.get(infoHash);
+    if (!torrent || !torrent.active) return false;
+
+    const event = torrent.lastEvent === '' || torrent.lastEvent === 'stopped' ? 'started' as const : '' as const;
+    await this.announceForTorrent(infoHash, event);
+    return true;
+  }
+
   isRunning(): boolean {
     return this.running;
   }
