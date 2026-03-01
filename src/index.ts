@@ -14,16 +14,20 @@ process.on('uncaughtException', (err) => {
 });
 
 async function main(): Promise<void> {
-  logger.info('Starting Seedr...');
+  const demoMode = process.argv.includes('--demo');
 
-  const seedManager = new SeedManager();
+  logger.info(demoMode ? 'Starting Seedr in DEMO mode...' : 'Starting Seedr...');
+
+  const seedManager = new SeedManager(demoMode);
   await seedManager.init();
 
   // Start web server
   const { server, io } = await startWebServer(seedManager);
 
-  // Start seeding
-  await seedManager.start();
+  // Start seeding (skip in demo mode — no real network activity)
+  if (!demoMode) {
+    await seedManager.start();
+  }
 
   // Graceful shutdown
   const shutdown = async (signal: string) => {

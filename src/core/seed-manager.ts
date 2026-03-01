@@ -27,6 +27,7 @@ import { Scheduler } from './scheduler.js';
 import { performAnnounce } from './announcer.js';
 import { ConnectionHandler } from './connection-handler.js';
 import { checkPortReachable, type PortCheckResult } from '../utils/port-checker.js';
+import { getDemoStatus, getDemoTorrentList } from '../demo/demo-data.js';
 import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('seed-manager');
@@ -51,6 +52,12 @@ export class SeedManager extends EventEmitter {
   private startTime = 0;
   private announceLocks = new Map<string, Promise<void>>(); // per-torrent announce lock
   private portCheckResult: { result: PortCheckResult | null; error: string | null; checking: boolean } = { result: null, error: null, checking: false };
+  readonly demoMode: boolean;
+
+  constructor(demoMode = false) {
+    super();
+    this.demoMode = demoMode;
+  }
 
   async init(): Promise<void> {
     this.config = loadConfig();
@@ -65,13 +72,15 @@ export class SeedManager extends EventEmitter {
       this.config.maxUploadRate
     );
 
-    // Scan torrents directory and start file watcher immediately
-    // so the UI always reflects what's in the torrents folder
-    this.scanTorrents();
-    this.startFileWatcher();
+    if (!this.demoMode) {
+      // Scan torrents directory and start file watcher immediately
+      // so the UI always reflects what's in the torrents folder
+      this.scanTorrents();
+      this.startFileWatcher();
+    }
 
     logger.info(
-      { client: this.config.client, port: this.config.port },
+      { client: this.config.client, port: this.config.port, demoMode: this.demoMode },
       'SeedManager initialized'
     );
   }
@@ -619,6 +628,8 @@ export class SeedManager extends EventEmitter {
   }
 
   getStatus(): SeedrStatus {
+    if (this.demoMode) return getDemoStatus();
+
     const torrentStates = [...this.torrents.values()].map((t) => {
       const hexHash = infoHashToHex(t.meta.infoHash);
       const unreported = this.bandwidth.getAccumulated(hexHash);
@@ -661,6 +672,8 @@ export class SeedManager extends EventEmitter {
     tracker: string;
     uploadRate: number;
   }> {
+    if (this.demoMode) return getDemoTorrentList();
+
     return [...this.torrents.entries()].map(([hash, t]) => {
       const unreported = this.running ? this.bandwidth.getAccumulated(hash) : 0;
       return {
