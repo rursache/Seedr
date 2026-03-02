@@ -18,16 +18,16 @@ function eventColor(type: string): string {
   if (type.includes('success')) return 'text-emerald-400';
   if (type.includes('failure')) return 'text-red-400';
   if (type.includes('added')) return 'text-blue-400';
-  if (type.includes('removed')) return 'text-amber-400';
+  if (type.includes('removed')) return 'text-blue-400';
   return 'text-gray-400';
 }
 
 function isWarningOrError(event: SeedrEvent): boolean {
-  return event.type.includes('failure') || event.type === 'stopped' || event.type.includes('removed');
+  return event.type.includes('failure') || event.type === 'stopped';
 }
 
 function isSuccess(event: SeedrEvent): boolean {
-  return event.type.includes('success') || event.type === 'started' || event.type.includes('added') || event.type.includes('completed');
+  return event.type.includes('success') || event.type === 'started' || event.type.includes('added') || event.type.includes('removed') || event.type.includes('completed');
 }
 
 const filteredEvents = computed(() => {

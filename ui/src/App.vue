@@ -9,8 +9,14 @@ import EventLog from './components/EventLog.vue';
 const store = useSeedrStore();
 const showSettings = ref(false);
 const showEventLog = ref(false);
+const lastSeenEventId = ref(0);
 
-const hasErrors = computed(() => store.events.some(e => e.type.includes('failure') || e.type === 'stopped' || e.type.includes('removed')));
+function openEventLog() {
+  showEventLog.value = true;
+  if (store.events.length > 0) lastSeenEventId.value = store.events[0].id;
+}
+
+const hasErrors = computed(() => store.events.some(e => e.id > lastSeenEventId.value && (e.type.includes('failure') || e.type === 'stopped')));
 
 // Settings modal save via exposed ref
 const settingsRef = ref<InstanceType<typeof Settings> | null>(null);
@@ -147,7 +153,7 @@ onUnmounted(() => {
 
             <!-- Event Log -->
             <button
-              @click="showEventLog = true"
+              @click="openEventLog()"
               class="relative w-[30px] h-[30px] flex items-center justify-center bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-400 hover:text-white rounded-lg transition-colors"
               title="Event Log"
             >
