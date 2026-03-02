@@ -99,8 +99,19 @@ function torrentStatus(torrent: { active: boolean; seeding: boolean; completed: 
   return { label: 'Queued', class: 'bg-gray-800 text-gray-500 border border-gray-700/50' };
 }
 
-async function remove(infoHash: string) {
-  await store.removeTorrent(infoHash);
+const confirmingRemove = ref<string | null>(null);
+let confirmTimer: ReturnType<typeof setTimeout> | undefined;
+
+function remove(infoHash: string) {
+  if (confirmingRemove.value === infoHash) {
+    clearTimeout(confirmTimer);
+    confirmingRemove.value = null;
+    store.removeTorrent(infoHash);
+  } else {
+    confirmingRemove.value = infoHash;
+    clearTimeout(confirmTimer);
+    confirmTimer = setTimeout(() => { confirmingRemove.value = null; }, 3000);
+  }
 }
 
 async function announce(infoHash: string) {
@@ -208,9 +219,12 @@ async function announce(infoHash: string) {
                   </button>
                   <button
                     @click="remove(torrent.infoHash)"
-                    class="text-xs text-gray-500 hover:text-red-400 bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 hover:border-red-500/20 px-2.5 py-1 rounded-lg transition-all"
+                    class="text-xs px-2.5 py-1 rounded-lg transition-all"
+                    :class="confirmingRemove === torrent.infoHash
+                      ? 'text-red-400 bg-red-500/20 border border-red-500/40'
+                      : 'text-gray-500 hover:text-red-400 bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 hover:border-red-500/20'"
                   >
-                    Remove
+                    {{ confirmingRemove === torrent.infoHash ? 'Confirm?' : 'Remove' }}
                   </button>
                 </div>
               </div>
