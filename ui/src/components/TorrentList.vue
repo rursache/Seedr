@@ -60,7 +60,7 @@ function trackerName(hostname: string): string {
 const sortedTorrents = computed(() => {
   const q = search.value.toLowerCase().trim();
   const list = q
-    ? store.torrents.filter((t) => t.name.toLowerCase().includes(q))
+    ? store.torrents.filter((t) => t.name.toLowerCase().includes(q) || t.fileName.toLowerCase().includes(q))
     : [...store.torrents];
   const dir = sortDir.value === 'asc' ? 1 : -1;
   if (sortField.value === 'name') {
