@@ -17,6 +17,7 @@ const configSchema = z.object({
   minLeechers: z.number().int().min(0).default(1),
   minSeeders: z.number().int().min(0).default(1),
   uploadRatioTarget: z.number().default(-1),
+  showFileName: z.boolean().default(true),
 });
 
 const stateSchema = z.object({
@@ -90,6 +91,7 @@ function defaultConfig(): AppConfig {
     minLeechers: 1,
     minSeeders: 1,
     uploadRatioTarget: -1,
+    showFileName: true,
   };
 }
 

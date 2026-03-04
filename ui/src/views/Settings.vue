@@ -17,9 +17,9 @@ const form = ref({
   minLeechers: 1,
   minSeeders: 1,
   uploadRatioTarget: -1,
+  showFileName: true,
 });
 
-const showFileName = ref(localStorage.getItem('showFileName') === 'true');
 const saving = ref(false);
 const saveMessage = ref<{ text: string; error: boolean } | null>(null);
 let savedTimer: ReturnType<typeof setTimeout> | undefined;
@@ -51,11 +51,6 @@ const seedWarning = computed(() => {
 });
 
 const formReady = computed(() => store.configLoaded && form.value.client !== '');
-
-function toggleFileName() {
-  showFileName.value = !showFileName.value;
-  localStorage.setItem('showFileName', String(showFileName.value));
-}
 
 async function save() {
   saving.value = true;
@@ -93,14 +88,14 @@ defineExpose({ save, saving, saveMessage, formReady, speedWarning, seedWarning }
           <button
             type="button"
             role="switch"
-            :aria-checked="showFileName"
-            @click="toggleFileName()"
+            :aria-checked="form.showFileName"
+            @click="form.showFileName = !form.showFileName"
             class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none"
-            :class="showFileName ? 'bg-emerald-600' : 'bg-gray-700'"
+            :class="form.showFileName ? 'bg-emerald-600' : 'bg-gray-700'"
           >
             <span
               class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform duration-200"
-              :class="showFileName ? 'translate-x-[18px]' : 'translate-x-[3px]'"
+              :class="form.showFileName ? 'translate-x-[18px]' : 'translate-x-[3px]'"
             />
           </button>
         </label>

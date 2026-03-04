@@ -15,7 +15,7 @@ const sortDir = ref<SortDir>(savedDir === 'asc' || savedDir === 'desc' ? savedDi
 if (!savedField) localStorage.setItem('sortField', sortField.value);
 if (!savedDir) localStorage.setItem('sortDir', sortDir.value);
 
-const showFileName = ref(localStorage.getItem('showFileName') === 'true');
+const showFileName = computed(() => store.config?.showFileName ?? true);
 const collapsedGroups = reactive(new Set<string>());
 
 const search = ref('');

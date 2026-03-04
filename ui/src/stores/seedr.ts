@@ -31,6 +31,7 @@ interface AppConfig {
   minLeechers: number;
   minSeeders: number;
   uploadRatioTarget: number;
+  showFileName: boolean;
 }
 
 interface PortCheckStatus {

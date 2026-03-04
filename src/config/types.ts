@@ -155,6 +155,7 @@ export interface AppConfig {
   minLeechers: number;
   minSeeders: number;
   uploadRatioTarget: number; // -1 = unlimited
+  showFileName: boolean; // show .torrent filename instead of torrent title in UI
 }
 
 // ── Runtime types ──

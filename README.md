@@ -95,6 +95,14 @@ All configuration is managed through the web UI Settings panel. Settings are per
 | Min Seeders | 1 | Only report upload when this many seeders are present |
 | Keep With Zero Leechers | true | Keep seeding torrents that have no leechers |
 | Skip If No Peers | true | Don't report upload if no peers are connected |
+| Show Filename | true | Show .torrent filename instead of torrent title in the UI |
+
+The following UI preferences are saved in the browser (localStorage) and not in `config.json`:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Sort Field | name | Sort torrent list by name or added order |
+| Sort Direction | asc | Sort direction (ascending or descending) |
 
 ## Environment Variables
 
