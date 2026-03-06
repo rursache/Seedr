@@ -150,6 +150,7 @@ export interface AppConfig {
   minUploadRate: number; // KB/s
   maxUploadRate: number; // KB/s
   simultaneousSeed: number;
+  seedRotationInterval: number; // minutes between rotation, -1 = disabled
   keepTorrentWithZeroLeechers: boolean;
   skipIfNoPeers: boolean;
   minLeechers: number;

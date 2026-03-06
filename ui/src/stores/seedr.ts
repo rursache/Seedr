@@ -26,6 +26,7 @@ interface AppConfig {
   minUploadRate: number;
   maxUploadRate: number;
   simultaneousSeed: number;
+  seedRotationInterval: number;
   keepTorrentWithZeroLeechers: boolean;
   skipIfNoPeers: boolean;
   minLeechers: number;

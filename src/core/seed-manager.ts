@@ -56,6 +56,8 @@ export class SeedManager extends EventEmitter {
   private fileWatcher: FSWatcher | null = null;
   private startTime = 0;
   private announceLocks = new Map<string, Promise<void>>(); // per-torrent announce lock
+  private activatedAt = new Map<string, number>(); // hash -> timestamp when torrent became active
+  private rotationTimer: ReturnType<typeof setInterval> | null = null;
   private portCheckResult: { result: PortCheckResult | null; error: string | null; checking: boolean } = { result: null, error: null, checking: false };
   readonly demoMode: boolean;
 
@@ -120,9 +122,13 @@ export class SeedManager extends EventEmitter {
         eligible: false, // Not eligible until first successful announce
       });
       if (torrent.active) {
+        this.activatedAt.set(hash, Date.now());
         this.scheduler.schedule(hash, 0); // Schedule initial announce
       }
     }
+
+    // Start rotation timer
+    this.startRotationTimer();
 
     // Start scheduler polling
     this.pollTimer = setInterval(() => this.pollScheduler(), POLL_INTERVAL);
@@ -174,6 +180,7 @@ export class SeedManager extends EventEmitter {
       clearInterval(this.stateSaveTimer);
       this.stateSaveTimer = null;
     }
+    this.stopRotationTimer();
 
     // Send stopped announces for all active torrents (with 10s timeout)
     const stopPromises: Promise<void>[] = [];
@@ -318,6 +325,7 @@ export class SeedManager extends EventEmitter {
 
         // Schedule initial announce (started event)
         if (active) {
+          this.activatedAt.set(hexHash, Date.now());
           this.scheduler.schedule(hexHash, 0); // Immediately
         }
       }
@@ -335,6 +343,7 @@ export class SeedManager extends EventEmitter {
   async removeTorrent(infoHash: string): Promise<void> {
     const torrent = this.torrents.get(infoHash);
     if (!torrent) return;
+    const wasActive = torrent.active;
 
     // Send stopped announce before removing (awaited so data is still available)
     if (this.running && torrent.active && torrent.lastEvent !== 'stopped') {
@@ -346,10 +355,16 @@ export class SeedManager extends EventEmitter {
     this.torrents.delete(infoHash);
     this.emulatorStates.delete(infoHash);
     this.announceLocks.delete(infoHash);
+    this.activatedAt.delete(infoHash);
     delete this.state.torrents[infoHash];
 
     this.emit('torrent:removed', { infoHash });
     logger.info({ name: torrent.meta.name }, 'Torrent removed');
+
+    // If an active torrent was removed and we have a seed limit, activate a queued one
+    if (wasActive && this.running && this.config.simultaneousSeed !== -1) {
+      this.activateNextQueued();
+    }
   }
 
   private async pollScheduler(): Promise<void> {
@@ -428,6 +443,11 @@ export class SeedManager extends EventEmitter {
         torrent.completed = true;
         logger.info({ name: torrent.meta.name }, 'Upload ratio target reached');
         this.emit('torrent:completed', { infoHash, name: torrent.meta.name });
+
+        // Free the active slot for a queued torrent
+        if (this.config.simultaneousSeed !== -1) {
+          this.freeCompletedSlot(infoHash);
+        }
       }
 
       // Update bandwidth dispatcher: eligible based on peer counts and completion
@@ -494,37 +514,155 @@ export class SeedManager extends EventEmitter {
   }
 
   private rebalanceActiveTorrents(): void {
-    const active = [...this.torrents.values()].filter((t) => t.active);
-    const inactive = [...this.torrents.values()].filter((t) => !t.active);
+    const active = [...this.torrents.entries()].filter(([_, t]) => t.active);
+    const inactive = [...this.torrents.entries()].filter(([_, t]) => !t.active);
     const limit = this.config.simultaneousSeed;
 
     if (limit === -1) {
       // Unlimited — activate all inactive torrents
-      for (const t of inactive) {
-        t.active = true;
-        const hash = infoHashToHex(t.meta.infoHash);
-        this.bandwidth.updateTorrent(hash, { active: true, eligible: this.isTorrentEligible(t) });
-        this.scheduler.schedule(hash, 0);
+      for (const [hash] of inactive) {
+        this.activateTorrent(hash);
       }
     } else if (limit > 0 && active.length > limit) {
       // Deactivate excess torrents
       const excess = active.slice(limit);
-      for (const t of excess) {
-        t.active = false;
-        const hash = infoHashToHex(t.meta.infoHash);
-        this.bandwidth.updateTorrent(hash, { active: false, eligible: false });
-        this.scheduler.remove(hash);
+      for (const [hash] of excess) {
+        this.deactivateTorrent(hash);
       }
     } else if (limit > 0 && active.length < limit && inactive.length > 0) {
       // Activate more torrents
       const slotsAvailable = limit - active.length;
       const toActivate = inactive.slice(0, slotsAvailable);
-      for (const t of toActivate) {
-        t.active = true;
-        const hash = infoHashToHex(t.meta.infoHash);
-        this.bandwidth.updateTorrent(hash, { active: true, eligible: this.isTorrentEligible(t) });
-        this.scheduler.schedule(hash, 0);
+      for (const [hash] of toActivate) {
+        this.activateTorrent(hash);
       }
+    }
+  }
+
+  // ── Rotation helpers ──
+
+  /**
+   * Activate a queued torrent: mark active, reset announce state, schedule announce.
+   */
+  private activateTorrent(hash: string): void {
+    const torrent = this.torrents.get(hash);
+    if (!torrent || torrent.active) return;
+
+    torrent.active = true;
+    torrent.seeding = false;
+    torrent.lastEvent = '' as AnnounceEvent;
+    torrent.consecutiveFailures = 0;
+    this.activatedAt.set(hash, Date.now());
+
+    if (this.running) {
+      this.bandwidth.updateTorrent(hash, { active: true, eligible: false });
+      this.scheduler.schedule(hash, 0);
+    }
+  }
+
+  /**
+   * Deactivate an active torrent: mark inactive, send stopped announce, remove from scheduler.
+   */
+  private deactivateTorrent(hash: string): void {
+    const torrent = this.torrents.get(hash);
+    if (!torrent || !torrent.active) return;
+
+    torrent.active = false;
+    this.activatedAt.delete(hash);
+
+    if (this.running) {
+      this.bandwidth.updateTorrent(hash, { active: false, eligible: false });
+      this.scheduler.remove(hash);
+
+      // Send stopped announce (fire-and-forget)
+      if (torrent.lastEvent !== 'stopped' && torrent.seeding) {
+        this.announceForTorrent(hash, 'stopped').catch(() => {});
+      }
+    }
+  }
+
+  /**
+   * Activate the next queued torrent (if any).
+   */
+  private activateNextQueued(): void {
+    const inactive = [...this.torrents.entries()].filter(([_, t]) => !t.active);
+    if (inactive.length === 0) return;
+
+    const [hash, torrent] = inactive[0]!;
+    this.activateTorrent(hash);
+    logger.info({ activated: torrent.meta.name }, 'Queued torrent activated');
+  }
+
+  /**
+   * Free a completed torrent's active slot and activate a queued replacement.
+   */
+  private freeCompletedSlot(infoHash: string): void {
+    const inactive = [...this.torrents.entries()].filter(([_, t]) => !t.active);
+    if (inactive.length === 0) return;
+
+    const completed = this.torrents.get(infoHash);
+    this.deactivateTorrent(infoHash);
+
+    const [activateHash, activateTorrent] = inactive[0]!;
+    this.activateTorrent(activateHash);
+
+    logger.info(
+      { completed: completed?.meta.name, activated: activateTorrent.meta.name },
+      'Slot freed on ratio completion'
+    );
+  }
+
+  /**
+   * Rotate one torrent: deactivate the longest-active, activate the longest-queued.
+   * Skips torrents that don't meet peer eligibility requirements (they shouldn't
+   * take a slot from a torrent that does).
+   */
+  private rotateTorrents(): void {
+    if (!this.running) return;
+    if (this.config.simultaneousSeed === -1) return;
+
+    const inactive = [...this.torrents.entries()].filter(([_, t]) => !t.active);
+    if (inactive.length === 0) return;
+
+    // Find the longest-active torrent (earliest activatedAt)
+    const active = [...this.torrents.entries()]
+      .filter(([_, t]) => t.active)
+      .sort((a, b) => (this.activatedAt.get(a[0]) || 0) - (this.activatedAt.get(b[0]) || 0));
+
+    if (active.length === 0) return;
+
+    // Find a queued torrent that is rotation-eligible (meets peer requirements).
+    // If no eligible candidate exists, skip this rotation cycle.
+    const candidate = inactive.find(([_, t]) => isRotationEligible(this.config, t));
+    if (!candidate) return;
+
+    const [deactivateHash, deactivateTorrent] = active[0]!;
+    const [activateHash, activateTorrent] = candidate;
+
+    this.deactivateTorrent(deactivateHash);
+    this.activateTorrent(activateHash);
+
+    logger.info(
+      { deactivated: deactivateTorrent.meta.name, activated: activateTorrent.meta.name },
+      'Torrent rotated'
+    );
+  }
+
+  private startRotationTimer(): void {
+    this.stopRotationTimer();
+    if (this.config.seedRotationInterval > 0 && this.config.simultaneousSeed !== -1) {
+      this.rotationTimer = setInterval(
+        () => this.rotateTorrents(),
+        this.config.seedRotationInterval * 60 * 1000
+      );
+      logger.info({ intervalMin: this.config.seedRotationInterval }, 'Rotation timer started');
+    }
+  }
+
+  private stopRotationTimer(): void {
+    if (this.rotationTimer) {
+      clearInterval(this.rotationTimer);
+      this.rotationTimer = null;
     }
   }
 
@@ -598,6 +736,11 @@ export class SeedManager extends EventEmitter {
     // If simultaneousSeed changed, activate/deactivate torrents accordingly
     if (updates.simultaneousSeed !== undefined) {
       this.rebalanceActiveTorrents();
+    }
+
+    // Restart rotation timer if rotation-related settings changed
+    if ((updates.seedRotationInterval !== undefined || updates.simultaneousSeed !== undefined) && this.running) {
+      this.startRotationTimer();
     }
 
     // Re-evaluate completed flag when uploadRatioTarget changes
@@ -749,4 +892,22 @@ export function checkRatioTarget(config: AppConfig, torrent: TorrentRuntimeState
   if (torrent.meta.totalSize === 0) return false;
   const ratio = torrent.seedState.uploaded / torrent.meta.totalSize;
   return ratio >= config.uploadRatioTarget;
+}
+
+/**
+ * Check whether a queued torrent is eligible for rotation into an active slot.
+ * A torrent that has already completed its ratio target, or that doesn't meet
+ * the configured peer requirements, should not displace an active torrent.
+ */
+export function isRotationEligible(config: AppConfig, torrent: TorrentRuntimeState): boolean {
+  if (torrent.completed) return false;
+  // For queued torrents that haven't announced yet, peer counts are 0.
+  // Only apply peer filters to torrents that have previously announced
+  // (seeders/leechers > 0 means the torrent has been active before).
+  if (torrent.seeders === 0 && torrent.leechers === 0) return true;
+  if (config.skipIfNoPeers && torrent.seeders + torrent.leechers === 0) return false;
+  if (!config.keepTorrentWithZeroLeechers && torrent.leechers === 0) return false;
+  if (torrent.leechers < config.minLeechers) return false;
+  if (torrent.seeders < config.minSeeders) return false;
+  return true;
 }

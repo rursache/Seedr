@@ -12,6 +12,7 @@ const form = ref({
   minUploadRate: 100,
   maxUploadRate: 500,
   simultaneousSeed: -1,
+  seedRotationInterval: -1,
   keepTorrentWithZeroLeechers: true,
   skipIfNoPeers: true,
   minLeechers: 1,
@@ -50,6 +51,16 @@ const seedWarning = computed(() => {
   return null;
 });
 
+const rotationWarning = computed(() => {
+  if (form.value.seedRotationInterval !== -1 && form.value.seedRotationInterval < 1) {
+    return 'Must be -1 (disabled) or at least 1 minute';
+  }
+  if (form.value.seedRotationInterval > 0 && form.value.simultaneousSeed === -1) {
+    return 'Rotation has no effect when simultaneous seeds is unlimited';
+  }
+  return null;
+});
+
 const formReady = computed(() => store.configLoaded && form.value.client !== '');
 
 async function save() {
@@ -68,7 +79,7 @@ async function save() {
   }
 }
 
-defineExpose({ save, saving, saveMessage, formReady, speedWarning, seedWarning });
+defineExpose({ save, saving, saveMessage, formReady, speedWarning, seedWarning, rotationWarning });
 </script>
 
 <template>
@@ -169,6 +180,17 @@ defineExpose({ save, saving, saveMessage, formReady, speedWarning, seedWarning }
             />
           </div>
           <p v-if="seedWarning" class="text-xs text-amber-400 -mt-2">{{ seedWarning }}</p>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-1">Rotation Interval <span class="text-gray-600 font-normal ml-1.5">(minutes, -1 = off)</span></label>
+            <input
+              v-model.number="form.seedRotationInterval"
+              type="number"
+              min="-1"
+              class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
+            />
+          </div>
+          <p v-if="rotationWarning" class="text-xs text-amber-400 -mt-2">{{ rotationWarning }}</p>
 
           <div>
             <label class="block text-sm font-medium text-gray-300 mb-1">Ratio Target <span class="text-gray-600 font-normal ml-1.5">(-1 = unlimited)</span></label>
