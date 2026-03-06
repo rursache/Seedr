@@ -157,8 +157,8 @@ export async function httpAnnounce(
   // Parse peers
   let peers: PeerInfo[] = [];
   if (decoded.peers) {
-    if (Buffer.isBuffer(decoded.peers)) {
-      peers = parseCompactPeers(decoded.peers);
+    if (Buffer.isBuffer(decoded.peers) || decoded.peers instanceof Uint8Array) {
+      peers = parseCompactPeers(Buffer.from(decoded.peers));
     } else if (Array.isArray(decoded.peers)) {
       peers = parseDictPeers(decoded.peers as Array<{ ip: Buffer; port: number }>);
     }

@@ -55,12 +55,15 @@ export function setupWebSocket(io: Server, seedManager: SeedManager, authConfig?
     'started',
     'stopped',
   ];
+  const eventHandlers = new Map<string, (data: any) => void>();
 
   for (const event of events) {
-    seedManager.on(event, (data) => {
+    const handler = (data: any) => {
       pushEvent(event, data);
       io.emit(event, data);
-    });
+    };
+    eventHandlers.set(event, handler);
+    seedManager.on(event, handler);
   }
 
   // Broadcast full state periodically
@@ -96,5 +99,9 @@ export function setupWebSocket(io: Server, seedManager: SeedManager, authConfig?
       clearInterval(broadcastTimer);
       broadcastTimer = null;
     }
+    for (const [event, handler] of eventHandlers) {
+      seedManager.off(event, handler);
+    }
+    eventHandlers.clear();
   });
 }

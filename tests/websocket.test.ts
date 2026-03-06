@@ -82,6 +82,22 @@ describe('setupWebSocket', () => {
     expect(io.emitted.length).toBe(priorCount + 1);
   });
 
+  it('removes seed manager listeners when the socket server closes', () => {
+    const io = new FakeIO();
+    const seedManager = new EventEmitter() as any;
+    seedManager.getStatus = vi.fn(() => ({ running: true }));
+
+    setupWebSocket(io as any, seedManager);
+
+    expect(seedManager.listenerCount('started')).toBe(1);
+    expect(seedManager.listenerCount('announce:success')).toBe(1);
+
+    io.emit('close');
+
+    expect(seedManager.listenerCount('started')).toBe(0);
+    expect(seedManager.listenerCount('announce:success')).toBe(0);
+  });
+
   it('accepts programmatic auth tokens when basic auth is enabled', () => {
     const io = new FakeIO();
     const seedManager = new EventEmitter() as any;

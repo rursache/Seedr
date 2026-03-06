@@ -130,6 +130,26 @@ describe('SeedManager lifecycle and config updates', () => {
     saveSpy.mockRestore();
   });
 
+  it('rolls back the live connection and keeps config unchanged if port restart fails', async () => {
+    const saveSpy = vi.spyOn(configModule, 'saveConfig').mockImplementation(() => {});
+    const manager = createManager({ port: 49152 });
+    manager.running = true;
+    manager.connection.start = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('bind failed'))
+      .mockResolvedValueOnce(undefined);
+
+    await expect(manager.updateConfig({ port: 50000 })).rejects.toThrow('bind failed');
+
+    expect(manager.config.port).toBe(49152);
+    expect(manager.connection.stop).toHaveBeenCalledOnce();
+    expect(manager.connection.start).toHaveBeenNthCalledWith(1, 50000);
+    expect(manager.connection.start).toHaveBeenNthCalledWith(2, 49152);
+    expect(manager.connection.setContext).toHaveBeenCalledOnce();
+    expect(saveSpy).not.toHaveBeenCalled();
+    saveSpy.mockRestore();
+  });
+
   it('reloads the client profile and regenerates peer IDs and keys on client change', async () => {
     const saveSpy = vi.spyOn(configModule, 'saveConfig').mockImplementation(() => {});
     const loadSpy = vi.spyOn(clientEmulatorModule, 'loadClientProfile').mockReturnValue({
@@ -167,6 +187,38 @@ describe('SeedManager lifecycle and config updates', () => {
     expect(keySpy).toHaveBeenCalledOnce();
     expect(torrent.peerId.equals(Buffer.from('new-peer-id-12345678'))).toBe(true);
     expect(torrent.key).toBe('NEWKEY12');
+    saveSpy.mockRestore();
+  });
+
+  it('keeps config and runtime state unchanged if client profile loading fails', async () => {
+    const saveSpy = vi.spyOn(configModule, 'saveConfig').mockImplementation(() => {});
+    const loadSpy = vi.spyOn(clientEmulatorModule, 'loadClientProfile').mockImplementation(() => {
+      throw new Error('invalid profile');
+    });
+    const originalConfig = makeConfig();
+
+    mkdirSync(configModule.CLIENTS_DIR, { recursive: true });
+    const filePath = join(configModule.CLIENTS_DIR, 'broken.client');
+    writeFileSync(filePath, '{}');
+    createdFiles.push(filePath);
+
+    const manager = createManager();
+    const torrent = makeTorrent('a');
+    manager.torrents.set(torrent.seedState.infoHash, torrent);
+    manager.emulatorStates.set(torrent.seedState.infoHash, {
+      peerId: Buffer.from('old-peer-id-12345678'),
+      key: 'OLDKEY12',
+      announceCount: 0,
+      startedAnnouncesSent: 0,
+      lastKeyRefresh: 0,
+    });
+
+    await expect(manager.updateConfig({ client: 'broken.client' })).rejects.toThrow('invalid profile');
+
+    expect(loadSpy).toHaveBeenCalledOnce();
+    expect(manager.config).toEqual(originalConfig);
+    expect(torrent.key).toBe('old-key');
+    expect(saveSpy).not.toHaveBeenCalled();
     saveSpy.mockRestore();
   });
 
@@ -233,5 +285,24 @@ describe('SeedManager lifecycle and config updates', () => {
 
     expect(parseSpy).toHaveBeenCalledOnce();
     expect(manager.torrents.size).toBe(1);
+  });
+
+  it('cleans up partial startup state when connection startup fails', async () => {
+    const manager = createManager();
+    const torrent = makeTorrent('a', { active: true });
+    manager.torrents.set(torrent.seedState.infoHash, torrent);
+    manager.connection.start = vi.fn(async () => {
+      throw new Error('listen failed');
+    });
+
+    await expect(manager.start()).rejects.toThrow('listen failed');
+
+    expect(manager.running).toBe(false);
+    expect(manager.pollTimer).toBeNull();
+    expect(manager.stateSaveTimer).toBeNull();
+    expect(manager.scheduler.clear).toHaveBeenCalledOnce();
+    expect(manager.connection.stop).toHaveBeenCalledOnce();
+    expect(manager.bandwidth.start).not.toHaveBeenCalled();
+    expect(manager.activatedAt.size).toBe(0);
   });
 });

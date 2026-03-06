@@ -110,48 +110,77 @@ export class SeedManager extends EventEmitter {
     // occupying limited active slots.
     this.rebalanceActiveTorrents();
 
-    this.running = true;
+    try {
+      // Start connection handler (bind port, resolve IPs)
+      await this.connection.start(this.config.port);
 
-    // Start connection handler (bind port, resolve IPs)
-    await this.connection.start(this.config.port);
+      // Provide torrent context so incoming BT handshakes can be answered
+      this.connection.setContext(this.createConnectionContext());
 
-    // Provide torrent context so incoming BT handshakes can be answered
-    this.connection.setContext(this.createConnectionContext());
+      this.running = true;
 
-    // Start bandwidth dispatcher
-    this.bandwidth.start();
+      // Start bandwidth dispatcher
+      this.bandwidth.start();
 
-    // Register all existing torrents with bandwidth dispatcher and schedule announces
-    for (const [hash, torrent] of this.torrents) {
-      this.bandwidth.registerTorrent({
-        infoHash: hash,
-        seeders: torrent.seeders,
-        leechers: torrent.leechers,
-        active: torrent.active,
-        eligible: false, // Not eligible until first successful announce
-      });
-      if (torrent.active) {
-        this.activatedAt.set(hash, Date.now());
-        this.scheduler.schedule(hash, 0); // Schedule initial announce
+      // Register all existing torrents with bandwidth dispatcher and schedule announces
+      for (const [hash, torrent] of this.torrents) {
+        this.bandwidth.registerTorrent({
+          infoHash: hash,
+          seeders: torrent.seeders,
+          leechers: torrent.leechers,
+          active: torrent.active,
+          eligible: false, // Not eligible until first successful announce
+        });
+        if (torrent.active) {
+          this.activatedAt.set(hash, Date.now());
+          this.scheduler.schedule(hash, 0); // Schedule initial announce
+        }
       }
+
+      // Start rotation timer
+      this.startRotationTimer();
+
+      // Start scheduler polling
+      this.pollTimer = setInterval(() => this.pollScheduler(), POLL_INTERVAL);
+
+      // Start state persistence
+      this.stateSaveTimer = setInterval(() => {
+        this.persistState();
+      }, STATE_SAVE_INTERVAL);
+
+      this.emit('started');
+      logger.info({ port: this.connection.port, ip: this.connection.externalIp }, 'Seeding started');
+
+      // Run port check in background after start
+      this.runPortCheck();
+    } catch (err) {
+      this.running = false;
+      this.activatedAt.clear();
+      this.scheduler.clear();
+      this.stopRotationTimer();
+      if (this.pollTimer) {
+        clearInterval(this.pollTimer);
+        this.pollTimer = null;
+      }
+      if (this.stateSaveTimer) {
+        clearInterval(this.stateSaveTimer);
+        this.stateSaveTimer = null;
+      }
+
+      try {
+        this.bandwidth.stop();
+      } catch {
+        // Best-effort cleanup after a partial startup failure.
+      }
+
+      try {
+        await this.connection.stop();
+      } catch (stopErr) {
+        logger.error({ err: stopErr }, 'Failed to roll back connection handler after startup failure');
+      }
+
+      throw err;
     }
-
-    // Start rotation timer
-    this.startRotationTimer();
-
-    // Start scheduler polling
-    this.pollTimer = setInterval(() => this.pollScheduler(), POLL_INTERVAL);
-
-    // Start state persistence
-    this.stateSaveTimer = setInterval(() => {
-      this.persistState();
-    }, STATE_SAVE_INTERVAL);
-
-    this.emit('started');
-    logger.info({ port: this.connection.port, ip: this.connection.externalIp }, 'Seeding started');
-
-    // Run port check in background after start
-    this.runPortCheck();
   }
 
   private async runPortCheck(): Promise<void> {
@@ -705,9 +734,33 @@ export class SeedManager extends EventEmitter {
     return { ...this.config };
   }
 
+  private async restartConnectionWithRollback(oldPort: number, newPort: number): Promise<void> {
+    await this.connection.stop();
+
+    try {
+      await this.connection.start(newPort);
+      this.connection.setContext(this.createConnectionContext());
+      logger.info({ port: this.connection.port }, 'Port changed — connection handler restarted');
+      this.runPortCheck();
+    } catch (err) {
+      try {
+        await this.connection.start(oldPort);
+        this.connection.setContext(this.createConnectionContext());
+        logger.warn({ port: oldPort }, 'Restored previous port after failed port change');
+      } catch (rollbackErr) {
+        logger.error({ err: rollbackErr, port: oldPort }, 'Failed to restore previous port after port change error');
+      }
+      throw err;
+    }
+  }
+
   async updateConfig(updates: Partial<AppConfig>): Promise<AppConfig> {
-    const oldClient = this.config.client;
-    const oldPort = this.config.port;
+    const oldConfig = { ...this.config };
+    const oldClient = oldConfig.client;
+    const oldPort = oldConfig.port;
+    const nextConfig = { ...oldConfig, ...updates };
+    let nextProfile = this.profile;
+    const regeneratedStates = new Map<string, { peerId: Buffer; key: string }>();
 
     // Validate client file exists before applying any changes
     if (updates.client && updates.client !== oldClient) {
@@ -715,39 +768,44 @@ export class SeedManager extends EventEmitter {
       if (!existsSync(clientPath)) {
         throw new Error(`Client profile not found: ${updates.client}`);
       }
+
+      nextProfile = loadClientProfile(clientPath);
+
+      // Precompute regenerated peer IDs and keys so config mutation stays atomic.
+      for (const [hash] of this.emulatorStates) {
+        regeneratedStates.set(hash, {
+          peerId: generatePeerId(nextProfile.peerIdGenerator),
+          key: generateKey(nextProfile.keyGenerator),
+        });
+      }
     }
 
-    Object.assign(this.config, updates);
+    // If port changed and engine is running, restart connection handler
+    if (updates.port !== undefined && updates.port !== oldPort && this.running) {
+      await this.restartConnectionWithRollback(oldPort, nextConfig.port);
+    }
 
-    // If client changed, reload profile and regenerate peer IDs/keys
+    // Low-risk runtime state updates happen only after risky side effects succeed.
+    this.config = nextConfig;
+
     if (updates.client && updates.client !== oldClient) {
-      const clientPath = join(CLIENTS_DIR, this.config.client);
-      this.profile = loadClientProfile(clientPath);
-
-      // Regenerate peer IDs and keys for all torrents with the new profile
+      this.profile = nextProfile;
       for (const [hash, emState] of this.emulatorStates) {
-        emState.peerId = generatePeerId(this.profile.peerIdGenerator);
-        emState.key = generateKey(this.profile.keyGenerator);
+        const regenerated = regeneratedStates.get(hash);
+        if (!regenerated) continue;
+        emState.peerId = regenerated.peerId;
+        emState.key = regenerated.key;
         const torrent = this.torrents.get(hash);
         if (torrent) {
-          torrent.peerId = emState.peerId;
-          torrent.key = emState.key;
+          torrent.peerId = regenerated.peerId;
+          torrent.key = regenerated.key;
         }
       }
     }
 
     // Update bandwidth rates
     if (updates.minUploadRate !== undefined || updates.maxUploadRate !== undefined) {
-      this.bandwidth.updateRates(this.config.minUploadRate, this.config.maxUploadRate);
-    }
-
-    // If port changed and engine is running, restart connection handler
-    if (updates.port !== undefined && updates.port !== oldPort && this.running) {
-      await this.connection.stop();
-      await this.connection.start(this.config.port);
-      this.connection.setContext(this.createConnectionContext());
-      logger.info({ port: this.connection.port }, 'Port changed — connection handler restarted');
-      this.runPortCheck();
+      this.bandwidth.updateRates(nextConfig.minUploadRate, nextConfig.maxUploadRate);
     }
 
     // If simultaneousSeed changed, activate/deactivate torrents accordingly
@@ -788,10 +846,10 @@ export class SeedManager extends EventEmitter {
     }
 
     // Persist config only after all side effects have succeeded
-    saveConfig(this.config);
+    saveConfig(nextConfig);
 
-    this.emit('config:updated', this.config);
-    return { ...this.config };
+    this.emit('config:updated', nextConfig);
+    return { ...nextConfig };
   }
 
   getStatus(): SeedrStatus {
