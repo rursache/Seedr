@@ -94,8 +94,23 @@ export class SeedManager extends EventEmitter {
 
   async start(): Promise<void> {
     if (this.running || this.stopping) return;
-    this.running = true;
     this.startTime = Date.now();
+
+    for (const torrent of this.torrents.values()) {
+      // Reset runtime state for fresh session
+      torrent.seeding = false;
+      torrent.lastEvent = '' as AnnounceEvent;
+      torrent.consecutiveFailures = 0;
+      // Re-evaluate completed (ratio may still be met from persisted state)
+      torrent.completed = this.hasReachedRatioTarget(torrent);
+    }
+
+    // Recompute slot assignment before any timers or network activity start.
+    // This repairs gaps created while stopped and lets completed torrents stop
+    // occupying limited active slots.
+    this.rebalanceActiveTorrents();
+
+    this.running = true;
 
     // Start connection handler (bind port, resolve IPs)
     await this.connection.start(this.config.port);
@@ -108,12 +123,6 @@ export class SeedManager extends EventEmitter {
 
     // Register all existing torrents with bandwidth dispatcher and schedule announces
     for (const [hash, torrent] of this.torrents) {
-      // Reset runtime state for fresh session
-      torrent.seeding = false;
-      torrent.lastEvent = '' as AnnounceEvent;
-      torrent.consecutiveFailures = 0;
-      // Re-evaluate completed (ratio may still be met from persisted state)
-      torrent.completed = this.hasReachedRatioTarget(torrent);
       this.bandwidth.registerTorrent({
         infoHash: hash,
         seeders: torrent.seeders,
@@ -268,7 +277,7 @@ export class SeedManager extends EventEmitter {
       }
 
       // Check simultaneous seed limit (-1 = unlimited)
-      const activeCount = [...this.torrents.values()].filter((t) => t.active).length;
+      const activeCount = this.getSlotOccupyingTorrents().length;
       const active = this.config.simultaneousSeed === -1 || activeCount < this.config.simultaneousSeed;
 
       // Restore or create seed state
@@ -343,7 +352,7 @@ export class SeedManager extends EventEmitter {
   async removeTorrent(infoHash: string): Promise<void> {
     const torrent = this.torrents.get(infoHash);
     if (!torrent) return;
-    const wasActive = torrent.active;
+    const wasOccupyingSlot = torrent.active && !torrent.completed;
 
     // Send stopped announce before removing (awaited so data is still available)
     if (this.running && torrent.active && torrent.lastEvent !== 'stopped') {
@@ -362,7 +371,7 @@ export class SeedManager extends EventEmitter {
     logger.info({ name: torrent.meta.name }, 'Torrent removed');
 
     // If an active torrent was removed and we have a seed limit, activate a queued one
-    if (wasActive && this.running && this.config.simultaneousSeed !== -1) {
+    if (wasOccupyingSlot && this.config.simultaneousSeed !== -1) {
       this.activateNextQueued();
     }
   }
@@ -513,13 +522,21 @@ export class SeedManager extends EventEmitter {
     };
   }
 
+  private getSlotOccupyingTorrents(): Array<[string, TorrentRuntimeState]> {
+    return [...this.torrents.entries()].filter(([_, t]) => t.active && !t.completed);
+  }
+
+  private getQueuedTorrents(): Array<[string, TorrentRuntimeState]> {
+    return [...this.torrents.entries()].filter(([_, t]) => !t.active && !t.completed);
+  }
+
   private rebalanceActiveTorrents(): void {
-    const active = [...this.torrents.entries()].filter(([_, t]) => t.active);
-    const inactive = [...this.torrents.entries()].filter(([_, t]) => !t.active);
+    const active = this.getSlotOccupyingTorrents();
+    const inactive = this.getQueuedTorrents();
     const limit = this.config.simultaneousSeed;
 
     if (limit === -1) {
-      // Unlimited — activate all inactive torrents
+      // Unlimited — activate all non-completed torrents
       for (const [hash] of inactive) {
         this.activateTorrent(hash);
       }
@@ -585,7 +602,7 @@ export class SeedManager extends EventEmitter {
    * Activate the next queued torrent (if any).
    */
   private activateNextQueued(): void {
-    const inactive = [...this.torrents.entries()].filter(([_, t]) => !t.active);
+    const inactive = this.getQueuedTorrents();
     if (inactive.length === 0) return;
 
     const [hash, torrent] = inactive[0]!;
@@ -597,7 +614,7 @@ export class SeedManager extends EventEmitter {
    * Free a completed torrent's active slot and activate a queued replacement.
    */
   private freeCompletedSlot(infoHash: string): void {
-    const inactive = [...this.torrents.entries()].filter(([_, t]) => !t.active);
+    const inactive = this.getQueuedTorrents();
     if (inactive.length === 0) return;
 
     const completed = this.torrents.get(infoHash);

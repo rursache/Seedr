@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { checkTorrentEligible, checkRatioTarget, isRotationEligible } from '../src/core/seed-manager.js';
+import { describe, it, expect, vi } from 'vitest';
+import { SeedManager, checkTorrentEligible, checkRatioTarget, isRotationEligible } from '../src/core/seed-manager.js';
 import type { AppConfig, TorrentRuntimeState } from '../src/config/types.js';
 
 function makeConfig(overrides: Partial<AppConfig> = {}): AppConfig {
@@ -53,6 +53,63 @@ function makeTorrent(overrides: Partial<TorrentRuntimeState> = {}): TorrentRunti
     completed: false,
     ...overrides,
   };
+}
+
+function makeManagedTorrent(id: string, overrides: Partial<TorrentRuntimeState> = {}): TorrentRuntimeState {
+  const infoHash = id.padEnd(40, id[0] || 'a').slice(0, 40);
+  return makeTorrent({
+    meta: {
+      ...makeTorrent().meta,
+      infoHash: Buffer.from(infoHash, 'hex'),
+      name: `torrent-${id}`,
+      filePath: `/tmp/${id}.torrent`,
+      totalSize: 1000,
+    },
+    seedState: {
+      ...makeTorrent().seedState,
+      infoHash,
+    },
+    ...overrides,
+  });
+}
+
+function createManager(overrides: Partial<AppConfig> = {}) {
+  const manager = new SeedManager(true) as any;
+
+  manager.config = makeConfig(overrides);
+  manager.state = { torrents: {}, lastSaved: 0 };
+  manager.profile = {} as any;
+  manager.torrents = new Map();
+  manager.emulatorStates = new Map();
+  manager.announceLocks = new Map();
+  manager.activatedAt = new Map();
+  manager.bandwidth = {
+    registerTorrent: vi.fn(),
+    updateTorrent: vi.fn(),
+    removeTorrent: vi.fn(),
+    start: vi.fn(),
+    stop: vi.fn(),
+    getAccumulated: vi.fn(() => 0),
+    getActualTorrentRate: vi.fn(() => 0),
+    getGlobalRate: vi.fn(() => 0),
+    getActualRate: vi.fn(() => 0),
+  };
+  manager.scheduler = {
+    schedule: vi.fn(),
+    remove: vi.fn(),
+    clear: vi.fn(),
+  };
+  manager.connection = {
+    start: vi.fn(async () => {}),
+    setContext: vi.fn(),
+    stop: vi.fn(async () => {}),
+    port: 51413,
+    externalIp: null,
+    externalIpv6: null,
+  };
+  manager.runPortCheck = vi.fn();
+
+  return manager;
 }
 
 describe('checkTorrentEligible', () => {
@@ -302,5 +359,64 @@ describe('isRotationEligible', () => {
 
     // Never announced (zero peers) → benefit of doubt
     expect(isRotationEligible(config, makeTorrent({ seeders: 0, leechers: 0 }))).toBe(true);
+  });
+});
+
+describe('SeedManager active slot handling', () => {
+  it('treats completed active torrents as free slots during rebalance', () => {
+    const manager = createManager({ simultaneousSeed: 1 });
+    const completed = makeManagedTorrent('a', { active: true, completed: true, seeding: false });
+    const queued = makeManagedTorrent('b', { active: false, completed: false, seeding: false });
+
+    manager.torrents.set(completed.seedState.infoHash, completed);
+    manager.torrents.set(queued.seedState.infoHash, queued);
+
+    manager.rebalanceActiveTorrents();
+
+    expect(completed.active).toBe(true);
+    expect(queued.active).toBe(true);
+    expect(manager.getSlotOccupyingTorrents()).toEqual([[queued.seedState.infoHash, queued]]);
+  });
+
+  it('promotes the next queued torrent when an active slot is removed while stopped', async () => {
+    const manager = createManager({ simultaneousSeed: 1 });
+    const active = makeManagedTorrent('c', { active: true, completed: false });
+    const queued = makeManagedTorrent('d', { active: false, completed: false });
+
+    manager.torrents.set(active.seedState.infoHash, active);
+    manager.torrents.set(queued.seedState.infoHash, queued);
+
+    await manager.removeTorrent(active.seedState.infoHash);
+
+    expect(manager.torrents.has(active.seedState.infoHash)).toBe(false);
+    expect(queued.active).toBe(true);
+  });
+
+  it('rebalances slot assignment before start scheduling begins', async () => {
+    const manager = createManager({ simultaneousSeed: 1, uploadRatioTarget: 1 });
+    const completed = makeManagedTorrent('e', {
+      active: true,
+      completed: false,
+      seeding: true,
+      seedState: {
+        ...makeManagedTorrent('e').seedState,
+        uploaded: 1000,
+      },
+    });
+    const queued = makeManagedTorrent('f', { active: false, completed: false, seeding: false });
+
+    manager.torrents.set(completed.seedState.infoHash, completed);
+    manager.torrents.set(queued.seedState.infoHash, queued);
+
+    await manager.start();
+
+    expect(completed.completed).toBe(true);
+    expect(queued.active).toBe(true);
+    expect(manager.scheduler.schedule).toHaveBeenCalledWith(queued.seedState.infoHash, 0);
+
+    clearInterval(manager.pollTimer);
+    clearInterval(manager.stateSaveTimer);
+    clearInterval(manager.rotationTimer);
+    manager.running = false;
   });
 });
