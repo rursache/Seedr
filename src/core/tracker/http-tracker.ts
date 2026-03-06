@@ -156,7 +156,10 @@ export async function httpAnnounce(
 
   // Check for failure
   if (decoded['failure reason']) {
-    const reason = Buffer.from(decoded['failure reason']).toString('utf-8');
+    const raw = decoded['failure reason'];
+    const reason = Buffer.isBuffer(raw) || raw instanceof Uint8Array
+      ? Buffer.from(raw).toString('utf-8')
+      : String(raw);
     return {
       interval: 1800,
       seeders: 0,
@@ -182,9 +185,13 @@ export async function httpAnnounce(
   }
 
   // Warning message
-  const warningMessage = decoded['warning message']
-    ? Buffer.from(decoded['warning message']).toString('utf-8')
-    : undefined;
+  let warningMessage: string | undefined;
+  if (decoded['warning message']) {
+    const raw = decoded['warning message'];
+    warningMessage = Buffer.isBuffer(raw) || raw instanceof Uint8Array
+      ? Buffer.from(raw).toString('utf-8')
+      : String(raw);
+  }
 
   logger.debug(
     { interval, seeders: complete, leechers: incomplete, peerCount: peers.length },
