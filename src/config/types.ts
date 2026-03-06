@@ -177,6 +177,7 @@ export interface TorrentRuntimeState {
   active: boolean; // in active slot (selected for seeding)
   seeding: boolean; // at least one successful announce — actually seeding
   completed: boolean; // upload ratio target reached — still announces but no bandwidth
+  lastFailureTransient: boolean; // last announce failure was transient and is on a short retry path
 }
 
 export interface PortCheckStatus {

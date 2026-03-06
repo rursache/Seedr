@@ -14,6 +14,7 @@ interface TorrentInfo {
   active: boolean;
   seeding: boolean;
   completed: boolean;
+  lastFailureTransient: boolean;
   tracker: string;
   uploadRate?: number;
   consecutiveFailures: number;
@@ -108,6 +109,7 @@ export const useSeedrStore = defineStore('seedr', () => {
         active: t.active,
         seeding: t.seeding || false,
         completed: t.completed || false,
+        lastFailureTransient: t.lastFailureTransient || false,
         tracker: t.currentTracker || '',
         uploadRate: t.uploadRate || 0,
         consecutiveFailures: t.consecutiveFailures || 0,

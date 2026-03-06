@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { SeedManager, checkTorrentEligible, checkRatioTarget, isRotationEligible } from '../src/core/seed-manager.js';
+import { SeedManager, checkTorrentEligible, checkRatioTarget, getAnnounceRetryDelay, isRotationEligible, isTransientAnnounceError } from '../src/core/seed-manager.js';
 import type { AppConfig, TorrentRuntimeState } from '../src/config/types.js';
 import * as configModule from '../src/config/config.js';
 
@@ -52,6 +52,7 @@ function makeTorrent(overrides: Partial<TorrentRuntimeState> = {}): TorrentRunti
     active: true,
     seeding: true,
     completed: false,
+    lastFailureTransient: false,
     ...overrides,
   };
 }
@@ -360,6 +361,34 @@ describe('isRotationEligible', () => {
 
     // Never announced (zero peers) → benefit of doubt
     expect(isRotationEligible(config, makeTorrent({ seeders: 0, leechers: 0 }))).toBe(true);
+  });
+});
+
+describe('announce retry delays', () => {
+  it('treats HTTP 5xx responses as transient errors', () => {
+    expect(isTransientAnnounceError('HTTP tracker returned status 502')).toBe(true);
+    expect(isTransientAnnounceError('HTTP tracker returned status 503')).toBe(true);
+    expect(isTransientAnnounceError('HTTP tracker returned status 404')).toBe(false);
+  });
+
+  it('treats common transport failures as transient errors', () => {
+    expect(isTransientAnnounceError('Connection timeout')).toBe(true);
+    expect(isTransientAnnounceError('socket hang up')).toBe(true);
+    expect(isTransientAnnounceError('ECONNRESET')).toBe(true);
+    expect(isTransientAnnounceError('Torrent not registered')).toBe(false);
+  });
+
+  it('uses a fast 3-second backoff base for transient failures', () => {
+    expect(getAnnounceRetryDelay(1, 'HTTP tracker returned status 502')).toBe(3000);
+    expect(getAnnounceRetryDelay(2, 'HTTP tracker returned status 502')).toBe(6000);
+    expect(getAnnounceRetryDelay(3, 'Connection timeout')).toBe(12000);
+    expect(getAnnounceRetryDelay(10, 'HTTP tracker returned status 504')).toBe(48000);
+  });
+
+  it('keeps the existing slower backoff for non-transient failures', () => {
+    expect(getAnnounceRetryDelay(1, 'Torrent not registered')).toBe(30000);
+    expect(getAnnounceRetryDelay(2, 'Torrent not registered')).toBe(60000);
+    expect(getAnnounceRetryDelay(10, 'Torrent not registered')).toBe(480000);
   });
 });
 

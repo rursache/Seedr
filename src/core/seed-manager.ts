@@ -38,6 +38,8 @@ const ANNOUNCE_INTERVAL_MIN = 60; // seconds
 const ANNOUNCE_INTERVAL_MAX = 86_400; // 1 day in seconds
 const RETRY_BASE_DELAY = 30_000; // 30s base retry delay
 const RETRY_MAX_DELAY = 480_000; // 8 min max retry delay
+const TRANSIENT_RETRY_BASE_DELAY = 3_000; // 3s base retry for transient tracker/server errors
+const TRANSIENT_RETRY_MAX_DELAY = 48_000; // 48s cap for transient tracker/server errors
 const STOP_ANNOUNCE_TIMEOUT = 10_000; // 10s timeout for stop announces
 
 export class SeedManager extends EventEmitter {
@@ -101,6 +103,7 @@ export class SeedManager extends EventEmitter {
       torrent.seeding = false;
       torrent.lastEvent = '' as AnnounceEvent;
       torrent.consecutiveFailures = 0;
+      torrent.lastFailureTransient = false;
       // Re-evaluate completed (ratio may still be met from persisted state)
       torrent.completed = this.hasReachedRatioTarget(torrent);
     }
@@ -346,6 +349,7 @@ export class SeedManager extends EventEmitter {
         active,
         seeding: false, // Not seeding until first successful announce
         completed: false, // Set when upload ratio target is reached
+        lastFailureTransient: false,
       };
 
       this.torrents.set(hexHash, runtimeState);
@@ -475,6 +479,7 @@ export class SeedManager extends EventEmitter {
       torrent.lastEvent = event;
       torrent.announceCount = torrent.seedState.announceCount;
       torrent.seeding = true; // Successfully announced — now actually seeding
+      torrent.lastFailureTransient = false;
 
       // Check upload ratio target — mark completed (still announces, no bandwidth)
       if (this.hasReachedRatioTarget(torrent) && !torrent.completed) {
@@ -509,6 +514,7 @@ export class SeedManager extends EventEmitter {
     } else {
       // Failed announce — not seeding, not eligible for bandwidth
       torrent.seeding = false;
+      torrent.lastFailureTransient = isTransientAnnounceError(result.error);
       this.bandwidth.updateTorrent(infoHash, { eligible: false });
 
       // Restore consumed bytes so they aren't lost
@@ -529,8 +535,7 @@ export class SeedManager extends EventEmitter {
         const clampedInterval = Math.max(ANNOUNCE_INTERVAL_MIN, Math.min(torrent.interval, ANNOUNCE_INTERVAL_MAX));
         this.scheduler.schedule(infoHash, clampedInterval * 1000);
       } else {
-        // Exponential backoff: 30s, 60s, 120s, 240s, 480s (cap)
-        const retryDelay = Math.min(RETRY_BASE_DELAY * Math.pow(2, torrent.consecutiveFailures - 1), RETRY_MAX_DELAY);
+        const retryDelay = getAnnounceRetryDelay(torrent.consecutiveFailures, result.error);
         this.scheduler.schedule(infoHash, retryDelay);
       }
     }
@@ -598,6 +603,7 @@ export class SeedManager extends EventEmitter {
     torrent.seeding = false;
     torrent.lastEvent = '' as AnnounceEvent;
     torrent.consecutiveFailures = 0;
+    torrent.lastFailureTransient = false;
     this.activatedAt.set(hash, Date.now());
 
     if (this.running) {
@@ -895,6 +901,7 @@ export class SeedManager extends EventEmitter {
     active: boolean;
     seeding: boolean;
     completed: boolean;
+    lastFailureTransient: boolean;
     tracker: string;
     uploadRate: number;
     consecutiveFailures: number;
@@ -916,6 +923,7 @@ export class SeedManager extends EventEmitter {
         active: t.active,
         seeding: t.seeding,
         completed: t.completed,
+        lastFailureTransient: t.lastFailureTransient,
         tracker: t.currentTracker,
         uploadRate: this.running ? this.bandwidth.getActualTorrentRate(hash) : 0,
         consecutiveFailures: t.consecutiveFailures,
@@ -991,4 +999,24 @@ export function isRotationEligible(config: AppConfig, torrent: TorrentRuntimeSta
   if (torrent.leechers < config.minLeechers) return false;
   if (torrent.seeders < config.minSeeders) return false;
   return true;
+}
+
+export function isTransientAnnounceError(error?: string): boolean {
+  if (!error) return false;
+
+  return /HTTP tracker returned status 5\d\d\b/i.test(error) ||
+    /(?:timed out|timeout|ECONNRESET|EAI_AGAIN|ENOTFOUND|ECONNREFUSED|socket hang up)/i.test(error);
+}
+
+export function getAnnounceRetryDelay(consecutiveFailures: number, error?: string): number {
+  const failureCount = Math.max(1, consecutiveFailures);
+
+  if (isTransientAnnounceError(error)) {
+    return Math.min(
+      TRANSIENT_RETRY_BASE_DELAY * Math.pow(2, failureCount - 1),
+      TRANSIENT_RETRY_MAX_DELAY
+    );
+  }
+
+  return Math.min(RETRY_BASE_DELAY * Math.pow(2, failureCount - 1), RETRY_MAX_DELAY);
 }

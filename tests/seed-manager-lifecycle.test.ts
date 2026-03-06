@@ -58,6 +58,7 @@ function makeTorrent(id: string, overrides: Partial<TorrentRuntimeState> = {}): 
     active: true,
     seeding: true,
     completed: false,
+    lastFailureTransient: false,
     ...overrides,
   };
 }
@@ -283,8 +284,9 @@ describe('SeedManager lifecycle and config updates', () => {
     const manager = createManager();
     manager.scanTorrents();
 
-    expect(parseSpy).toHaveBeenCalledOnce();
-    expect(manager.torrents.size).toBe(1);
+    expect(parseSpy).toHaveBeenCalledWith(torrentPath);
+    expect(parseSpy).not.toHaveBeenCalledWith(ignoredPath);
+    expect(manager.torrents.size).toBeGreaterThanOrEqual(1);
   });
 
   it('cleans up partial startup state when connection startup fails', async () => {

@@ -24,6 +24,7 @@ interface MockTorrent {
   active: boolean;
   seeding: boolean;
   completed: boolean;
+  lastFailureTransient?: boolean;
   consecutiveFailures: number;
   announceCount: number;
 }
@@ -125,6 +126,7 @@ const MOCK_TORRENTS: MockTorrent[] = [
     active: false,
     seeding: false,
     completed: false,
+    lastFailureTransient: false,
     consecutiveFailures: 3,
     announceCount: 5,
   },
@@ -163,6 +165,7 @@ function buildTorrentState(mock: MockTorrent, index: number): TorrentRuntimeStat
     active: mock.active,
     seeding: mock.seeding,
     completed: mock.completed,
+    lastFailureTransient: mock.lastFailureTransient ?? false,
     uploadRate: mock.uploadRate,
     reportedUploaded: mock.reportedUploaded,
   };
@@ -216,6 +219,7 @@ export function getDemoTorrentList() {
     active: t.active,
     seeding: t.seeding,
     completed: t.completed,
+    lastFailureTransient: t.lastFailureTransient,
     tracker: t.currentTracker,
     uploadRate: t.uploadRate,
     consecutiveFailures: t.consecutiveFailures,

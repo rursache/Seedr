@@ -73,6 +73,7 @@ describe('Seedr store', () => {
           active: true,
           seeding: true,
           completed: false,
+          lastFailureTransient: false,
           currentTracker: 'http://tracker.example.com/announce',
           uploadRate: 512,
           consecutiveFailures: 0,
@@ -92,6 +93,7 @@ describe('Seedr store', () => {
       tracker: 'http://tracker.example.com/announce',
       active: true,
       seeding: true,
+      lastFailureTransient: false,
     });
     expect(store.actionPending).toBe(false);
   });
@@ -194,6 +196,7 @@ describe('Seedr store', () => {
           active: true,
           seeding: true,
           completed: false,
+          lastFailureTransient: false,
           currentTracker: 'tracker-a',
           consecutiveFailures: 0,
         },
@@ -206,6 +209,7 @@ describe('Seedr store', () => {
           active: false,
           seeding: true,
           completed: false,
+          lastFailureTransient: true,
           currentTracker: 'tracker-b',
           consecutiveFailures: 0,
         },
@@ -218,6 +222,7 @@ describe('Seedr store', () => {
           active: false,
           seeding: false,
           completed: false,
+          lastFailureTransient: false,
           currentTracker: 'tracker-c',
           consecutiveFailures: 2,
         },
@@ -230,6 +235,7 @@ describe('Seedr store', () => {
           active: false,
           seeding: true,
           completed: true,
+          lastFailureTransient: false,
           currentTracker: 'tracker-d',
           consecutiveFailures: 0,
         },
@@ -243,6 +249,7 @@ describe('Seedr store', () => {
     expect(store.errorCount).toBe(1);
     expect(store.completedCount).toBe(1);
     expect(store.isSeeding).toBe(true);
+    expect(store.torrents[1]?.lastFailureTransient).toBe(true);
   });
 
   it('removes a torrent optimistically and refetches when delete fails', async () => {

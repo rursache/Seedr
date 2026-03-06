@@ -71,11 +71,11 @@ function eventSummary(event: { type: string; data: any }): string {
       <div
         v-for="event in filteredEvents"
         :key="event.id"
-        class="px-4 py-1.5 text-xs font-mono flex items-center gap-3 hover:bg-gray-800/50"
+        class="px-4 py-2 text-xs font-mono flex items-start gap-3 hover:bg-gray-800/50"
       >
-        <span class="text-gray-600 shrink-0">{{ formatTime(event.time) }}</span>
-        <span :class="eventColor(event.type)" class="shrink-0">{{ event.type }}</span>
-        <span class="text-gray-500 truncate">{{ eventSummary(event) }}</span>
+        <span class="text-gray-600 shrink-0 pt-0.5">{{ formatTime(event.time) }}</span>
+        <span :class="eventColor(event.type)" class="shrink-0 pt-0.5">{{ event.type }}</span>
+        <span class="text-gray-500 min-w-0 whitespace-normal break-all leading-5">{{ eventSummary(event) }}</span>
       </div>
     </div>
   </div>
