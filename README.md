@@ -48,21 +48,6 @@ docker run -d \
   ghcr.io/rursache/seedr:latest
 ```
 
-### Local development
-
-Requires Node.js 22+.
-
-```bash
-# Install dependencies
-npm install
-cd ui && npm install && cd ..
-
-# Start in development mode (hot reload)
-npm run dev
-```
-
-The dev server starts the backend on port 8080 with hot reload. The frontend dev server proxies API requests to the backend.
-
 ### Production build
 
 ```bash
@@ -75,6 +60,24 @@ To preview the UI with mock data (no real network activity):
 npm run build && npm start -- --demo
 ```
 
+### Local development
+
+Requires Node.js 22+.
+
+```bash
+# Install dependencies
+npm install
+cd ui && npm install && cd ..
+
+# Start the backend (hot reload)
+npm run dev
+
+# In another terminal, start the frontend dev server
+cd ui && npm run dev
+```
+
+The backend runs on port `8080` with hot reload. The Vite frontend dev server proxies `/api` and `/socket.io` to the backend.
+
 ## Port Forwarding
 
 The BitTorrent port (default `49152`) is the port that trackers and peers use to verify your client is reachable. This is the port you need to forward on your router/firewall, not the web UI port. The web UI port (`8080`) should stay local and not be exposed to the internet. If you really want to expose the WebUI port as well, make sure to enable auth!
@@ -85,13 +88,13 @@ All configuration is managed through the web UI Settings panel. Settings are per
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| Client Profile | qbittorrent-latest | Which BT client to emulate |
+| Client Profile | first available qBittorrent profile | Which BT client to emulate |
 | Port | 49152 | Listening port announced to trackers |
 | Min Upload Rate | 100 KB/s | Minimum simulated upload speed |
 | Max Upload Rate | 500 KB/s | Maximum simulated upload speed |
 | Max Active Torrents | -1 (all) | How many torrents to seed at once (-1 = unlimited) |
 | Seed Rotation Interval | 15 | Minutes between rotating active torrents when Max Active Torrents is limited |
-| Upload Ratio Target | -1 (unlimited) | Stop seeding after reaching this ratio (-1 = never stop) |
+| Upload Ratio Target | -1 (unlimited) | Mark torrent completed after reaching this ratio; it keeps announcing but stops simulated upload (-1 = never complete by ratio) |
 | Min Leechers | 1 | Only report upload when this many leechers are present |
 | Min Seeders | 1 | Only report upload when this many seeders are present |
 | Keep With Zero Leechers | true | Keep seeding torrents that have no leechers |
