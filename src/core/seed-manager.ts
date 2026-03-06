@@ -662,6 +662,7 @@ export class SeedManager extends EventEmitter {
   getTorrentList(): Array<{
     infoHash: string;
     name: string;
+    fileName: string;
     size: number;
     uploaded: number;
     reportedUploaded: number;
@@ -672,14 +673,17 @@ export class SeedManager extends EventEmitter {
     completed: boolean;
     tracker: string;
     uploadRate: number;
+    consecutiveFailures: number;
+    addedIndex: number;
   }> {
     if (this.demoMode) return getDemoTorrentList();
 
-    return [...this.torrents.entries()].map(([hash, t]) => {
+    return [...this.torrents.entries()].map(([hash, t], i) => {
       const unreported = this.running ? this.bandwidth.getAccumulated(hash) : 0;
       return {
         infoHash: hash,
         name: t.meta.name,
+        fileName: basename(t.meta.filePath),
         size: t.meta.totalSize,
         uploaded: t.seedState.uploaded + unreported,
         reportedUploaded: t.seedState.uploaded,
@@ -690,6 +694,8 @@ export class SeedManager extends EventEmitter {
         completed: t.completed,
         tracker: t.currentTracker,
         uploadRate: this.running ? this.bandwidth.getActualTorrentRate(hash) : 0,
+        consecutiveFailures: t.consecutiveFailures,
+        addedIndex: i,
       };
     });
   }

@@ -124,6 +124,10 @@ export class ConnectionHandler {
       cleanup();
       socket.end();
     });
+
+    socket.once('close', () => {
+      cleanup();
+    });
   }
 
   /**

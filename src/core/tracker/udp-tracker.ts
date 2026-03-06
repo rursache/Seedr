@@ -156,6 +156,47 @@ function sendAndReceive(
 }
 
 /**
+ * Perform the BEP-15 connect handshake with retransmission.
+ * Returns the 64-bit connection ID on success, throws on failure.
+ */
+async function udpConnect(
+  socket: dgram.Socket,
+  host: string,
+  port: number,
+  maxRetries: number
+): Promise<bigint> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const timeout = 15000 * Math.pow(2, attempt);
+    const { buffer: connectBuf, transactionId } = buildConnectRequest();
+
+    try {
+      const response = await sendAndReceive(
+        socket,
+        connectBuf,
+        host,
+        port,
+        transactionId,
+        timeout
+      );
+
+      const action = response.readUInt32BE(0);
+      if (action !== ACTION_CONNECT || response.length < 16) {
+        throw new Error('Invalid connect response');
+      }
+
+      return response.readBigInt64BE(8);
+    } catch {
+      if (attempt >= maxRetries) {
+        throw new Error(`UDP connect failed after ${maxRetries + 1} attempts`);
+      }
+      logger.debug({ attempt: attempt + 1 }, 'UDP connect retry');
+    }
+  }
+
+  throw new Error('UDP connect failed');
+}
+
+/**
  * Perform a UDP tracker announce with BEP-15 protocol.
  * Handles connect handshake, announce request, and retransmission.
  */
@@ -184,7 +225,6 @@ export async function udpAnnounce(
 
   try {
     // Check connection cache
-    let connectionId: bigint;
     const cached = connectionCache.get(cacheKey);
 
     // Prune expired cache entries (older than 60s)
@@ -193,47 +233,14 @@ export async function udpAnnounce(
       if (now - state.timestamp > 60000) connectionCache.delete(key);
     }
 
+    let connectionId: bigint;
+
     if (cached && now - cached.timestamp < 55000) {
       connectionId = cached.connectionId;
     } else {
       // Connect handshake with retransmission
-      let attempt = 0;
-      let connected = false;
-
-      while (attempt <= maxRetries && !connected) {
-        const timeout = 15000 * Math.pow(2, attempt);
-        const { buffer: connectBuf, transactionId } = buildConnectRequest();
-
-        try {
-          const response = await sendAndReceive(
-            socket,
-            connectBuf,
-            host,
-            trackerPort,
-            transactionId,
-            timeout
-          );
-
-          const action = response.readUInt32BE(0);
-          if (action !== ACTION_CONNECT || response.length < 16) {
-            throw new Error('Invalid connect response');
-          }
-
-          connectionId = response.readBigInt64BE(8);
-          connectionCache.set(cacheKey, { connectionId, timestamp: Date.now() });
-          connected = true;
-        } catch {
-          attempt++;
-          if (attempt > maxRetries) {
-            throw new Error(`UDP connect failed after ${maxRetries + 1} attempts`);
-          }
-          logger.debug({ attempt }, 'UDP connect retry');
-        }
-      }
-
-      if (!connected) {
-        throw new Error('UDP connect failed');
-      }
+      connectionId = await udpConnect(socket, host, trackerPort, maxRetries);
+      connectionCache.set(cacheKey, { connectionId, timestamp: Date.now() });
     }
 
     // Announce request with retransmission

@@ -60,7 +60,7 @@ export function registerTorrentRoutes(server: FastifyInstance, seedManager: Seed
         return reply.status(404).send({ error: 'Torrent not found' });
       }
 
-      seedManager.removeTorrent(infoHash);
+      await seedManager.removeTorrent(infoHash);
 
       return { success: true };
     }

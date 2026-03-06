@@ -204,7 +204,7 @@ export function getDemoStatus(): SeedrStatus {
 
 export function getDemoTorrentList() {
   const status = getDemoStatus();
-  return status.torrents.map((t: any) => ({
+  return status.torrents.map((t: any, i: number) => ({
     infoHash: t.seedState.infoHash,
     name: t.meta.name,
     fileName: t.meta.filePath.split('/').pop() || '',
@@ -219,6 +219,6 @@ export function getDemoTorrentList() {
     tracker: t.currentTracker,
     uploadRate: t.uploadRate,
     consecutiveFailures: t.consecutiveFailures,
-    addedIndex: 0,
+    addedIndex: i,
   }));
 }
