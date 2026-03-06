@@ -136,4 +136,24 @@ describe('httpAnnounce', () => {
       await expect(httpAnnounce(`${baseUrl}/announce`, 'a=1', headers)).rejects.toThrow('HTTP tracker returned status 503');
     });
   });
+
+  it('rejects empty 200 responses with a descriptive error', async () => {
+    await withServer((_req, res) => {
+      res.end('');
+    }, async (baseUrl) => {
+      await expect(httpAnnounce(`${baseUrl}/announce`, 'a=1', headers)).rejects.toThrow(
+        'Invalid HTTP tracker response: expected bencoded dictionary, got empty response'
+      );
+    });
+  });
+
+  it('rejects non-dictionary bencoded responses', async () => {
+    await withServer((_req, res) => {
+      res.end('le');
+    }, async (baseUrl) => {
+      await expect(httpAnnounce(`${baseUrl}/announce`, 'a=1', headers)).rejects.toThrow(
+        'Invalid HTTP tracker response: expected bencoded dictionary, got list response'
+      );
+    });
+  });
 });

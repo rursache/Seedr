@@ -9,6 +9,14 @@ const logger = createLogger('http-tracker');
 
 const MAX_REDIRECTS = 3;
 
+function isBencodedDictionary(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    !Buffer.isBuffer(value) &&
+    !(value instanceof Uint8Array);
+}
+
 /**
  * Parse compact peer format: each peer is 6 bytes (4 IP + 2 port).
  */
@@ -136,6 +144,15 @@ export async function httpAnnounce(
   const body = await rawRequest(fullUrl, headerMap, timeout);
 
   const decoded = bencode.decode(body);
+  if (!isBencodedDictionary(decoded)) {
+    const kind =
+      decoded === null ? 'empty response' :
+      Array.isArray(decoded) ? 'list response' :
+      typeof decoded === 'number' ? 'integer response' :
+      Buffer.isBuffer(decoded) || decoded instanceof Uint8Array ? 'string response' :
+      `${typeof decoded} response`;
+    throw new Error(`Invalid HTTP tracker response: expected bencoded dictionary, got ${kind}`);
+  }
 
   // Check for failure
   if (decoded['failure reason']) {
