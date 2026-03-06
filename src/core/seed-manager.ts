@@ -760,15 +760,21 @@ export class SeedManager extends EventEmitter {
       this.startRotationTimer();
     }
 
-    // Re-evaluate completed flag when uploadRatioTarget changes
+    // Re-evaluate completed state when uploadRatioTarget changes and repair
+    // slot assignment in case torrents cross the threshold in either direction.
     if (updates.uploadRatioTarget !== undefined) {
       for (const [hash, torrent] of this.torrents) {
-        if (torrent.completed && !this.hasReachedRatioTarget(torrent)) {
-          torrent.completed = false;
-          this.bandwidth.updateTorrent(hash, { eligible: this.isTorrentEligible(torrent) });
-          logger.info({ name: torrent.meta.name }, 'Torrent un-completed — ratio target raised');
+        const completed = this.hasReachedRatioTarget(torrent);
+        if (torrent.completed !== completed) {
+          torrent.completed = completed;
+          logger.info(
+            { name: torrent.meta.name, completed },
+            completed ? 'Torrent completed by ratio target update' : 'Torrent un-completed by ratio target update'
+          );
         }
+        this.bandwidth.updateTorrent(hash, { eligible: this.isTorrentEligible(torrent) });
       }
+      this.rebalanceActiveTorrents();
     }
 
     // Re-evaluate eligibility when peer-related settings change

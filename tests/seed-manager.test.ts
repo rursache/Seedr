@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { SeedManager, checkTorrentEligible, checkRatioTarget, isRotationEligible } from '../src/core/seed-manager.js';
 import type { AppConfig, TorrentRuntimeState } from '../src/config/types.js';
+import * as configModule from '../src/config/config.js';
 
 function makeConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   return {
@@ -418,5 +419,54 @@ describe('SeedManager active slot handling', () => {
     clearInterval(manager.stateSaveTimer);
     clearInterval(manager.rotationTimer);
     manager.running = false;
+  });
+
+  it('reactivates previously completed torrents when the ratio target is raised', async () => {
+    const saveSpy = vi.spyOn(configModule, 'saveConfig').mockImplementation(() => {});
+    const manager = createManager({ simultaneousSeed: -1, uploadRatioTarget: 1 });
+    const resumed = makeManagedTorrent('g', {
+      active: false,
+      completed: true,
+      seeding: false,
+      seedState: {
+        ...makeManagedTorrent('g').seedState,
+        uploaded: 1000,
+      },
+    });
+
+    manager.torrents.set(resumed.seedState.infoHash, resumed);
+
+    await manager.updateConfig({ uploadRatioTarget: 2 });
+
+    expect(resumed.completed).toBe(false);
+    expect(resumed.active).toBe(true);
+
+    saveSpy.mockRestore();
+  });
+
+  it('marks newly qualifying torrents completed when the ratio target is lowered and frees the slot', async () => {
+    const saveSpy = vi.spyOn(configModule, 'saveConfig').mockImplementation(() => {});
+    const manager = createManager({ simultaneousSeed: 1, uploadRatioTarget: 2 });
+    const current = makeManagedTorrent('h', {
+      active: true,
+      completed: false,
+      seeding: true,
+      seedState: {
+        ...makeManagedTorrent('h').seedState,
+        uploaded: 1000,
+      },
+    });
+    const queued = makeManagedTorrent('i', { active: false, completed: false, seeding: false });
+
+    manager.torrents.set(current.seedState.infoHash, current);
+    manager.torrents.set(queued.seedState.infoHash, queued);
+
+    await manager.updateConfig({ uploadRatioTarget: 1 });
+
+    expect(current.completed).toBe(true);
+    expect(queued.active).toBe(true);
+    expect(manager.getSlotOccupyingTorrents()).toEqual([[queued.seedState.infoHash, queued]]);
+
+    saveSpy.mockRestore();
   });
 });
