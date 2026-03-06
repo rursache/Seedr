@@ -12,7 +12,7 @@ const form = ref({
   minUploadRate: 100,
   maxUploadRate: 500,
   simultaneousSeed: -1,
-  seedRotationInterval: -1,
+  seedRotationInterval: 15,
   keepTorrentWithZeroLeechers: true,
   skipIfNoPeers: true,
   minLeechers: 1,
@@ -37,36 +37,57 @@ watch(
   { immediate: true }
 );
 
+const portWarning = computed(() => {
+  const v = form.value.port;
+  if (v === null || v === undefined || v === '' as any) return null; // empty → will use default
+  if (!Number.isInteger(v) || v < 1 || v > 65535) return 'Must be between 1 and 65535';
+  return null;
+});
+
 const speedWarning = computed(() => {
-  if (form.value.minUploadRate > form.value.maxUploadRate) {
-    return 'Min upload rate is higher than max';
-  }
+  const { minUploadRate, maxUploadRate } = form.value;
+  if (minUploadRate < 0 || maxUploadRate < 0) return 'Upload rates must be positive';
+  if (minUploadRate > maxUploadRate) return 'Min upload rate is higher than max';
   return null;
 });
 
 const seedWarning = computed(() => {
-  if (form.value.simultaneousSeed === 0) {
-    return 'Must be -1 (unlimited) or at least 1';
-  }
+  const v = form.value.simultaneousSeed;
+  if (v !== -1 && (!Number.isInteger(v) || v < 1)) return 'Must be -1 (all) or at least 1';
   return null;
 });
 
 const rotationWarning = computed(() => {
-  if (form.value.seedRotationInterval !== -1 && form.value.seedRotationInterval < 1) {
-    return 'Must be -1 (disabled) or at least 1 minute';
-  }
-  if (form.value.seedRotationInterval > 0 && form.value.simultaneousSeed === -1) {
-    return 'Rotation has no effect when simultaneous seeds is unlimited';
-  }
+  if (form.value.simultaneousSeed === -1) return null;
+  const v = form.value.seedRotationInterval;
+  if (!Number.isInteger(v) || v < 1 || v > 999999) return 'Must be between 1 and 999999 minutes';
   return null;
 });
 
-const formReady = computed(() => store.configLoaded && form.value.client !== '');
+const ratioWarning = computed(() => {
+  const v = form.value.uploadRatioTarget;
+  if (v !== -1 && v <= 0) return 'Must be -1 (unlimited) or a positive number';
+  return null;
+});
+
+const peerWarning = computed(() => {
+  const { minLeechers, minSeeders } = form.value;
+  if (minLeechers < 0 || !Number.isInteger(minLeechers)) return 'Min leechers must be 0 or more';
+  if (minSeeders < 0 || !Number.isInteger(minSeeders)) return 'Min seeders must be 0 or more';
+  return null;
+});
+
+const hasWarnings = computed(() =>
+  !!(portWarning.value || speedWarning.value || seedWarning.value || rotationWarning.value || ratioWarning.value || peerWarning.value)
+);
+
+const formReady = computed(() => store.configLoaded && form.value.client !== '' && !hasWarnings.value);
 
 async function save() {
   saving.value = true;
   saveMessage.value = null;
   clearTimeout(savedTimer);
+  if (!form.value.port) form.value.port = 49152;
   try {
     await store.updateConfig(form.value);
     saveMessage.value = { text: 'Settings saved', error: false };
@@ -79,7 +100,7 @@ async function save() {
   }
 }
 
-defineExpose({ save, saving, saveMessage, formReady, speedWarning, seedWarning, rotationWarning });
+defineExpose({ save, saving, saveMessage, formReady, portWarning, speedWarning, seedWarning, rotationWarning, ratioWarning, peerWarning });
 </script>
 
 <template>
@@ -130,18 +151,17 @@ defineExpose({ save, saving, saveMessage, formReady, speedWarning, seedWarning, 
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-300 mb-1">
-              Port <span class="text-gray-600 font-normal ml-1.5">(0 = random)</span>
-            </label>
+            <label class="block text-sm font-medium text-gray-300 mb-1">Port</label>
             <input
               v-model.number="form.port"
               type="number"
-              min="0"
+              min="1"
               max="65535"
               placeholder="49152"
               class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
             />
           </div>
+          <p v-if="portWarning" class="text-xs text-amber-400 -mt-2">{{ portWarning }}</p>
 
           <div class="grid grid-cols-2 gap-3">
             <div>
@@ -170,26 +190,29 @@ defineExpose({ save, saving, saveMessage, formReady, speedWarning, seedWarning, 
         <div class="space-y-4">
           <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Seeding Rules</h3>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-300 mb-1">Simultaneous Seeds <span class="text-gray-600 font-normal ml-1.5">(-1 = all)</span></label>
-            <input
-              v-model.number="form.simultaneousSeed"
-              type="number"
-              min="-1"
-              class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
-            />
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-1">Max Active Torrents <span class="text-gray-600 font-normal ml-1.5">(-1 = all)</span></label>
+              <input
+                v-model.number="form.simultaneousSeed"
+                type="number"
+                min="-1"
+                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-1">Rotation Interval <span class="text-gray-600 font-normal ml-1.5">(minutes)</span></label>
+              <input
+                v-model.number="form.seedRotationInterval"
+                type="number"
+                min="1"
+                max="999999"
+                :disabled="form.simultaneousSeed === -1"
+                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              />
+            </div>
           </div>
           <p v-if="seedWarning" class="text-xs text-amber-400 -mt-2">{{ seedWarning }}</p>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-300 mb-1">Rotation Interval <span class="text-gray-600 font-normal ml-1.5">(minutes, -1 = off)</span></label>
-            <input
-              v-model.number="form.seedRotationInterval"
-              type="number"
-              min="-1"
-              class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
-            />
-          </div>
           <p v-if="rotationWarning" class="text-xs text-amber-400 -mt-2">{{ rotationWarning }}</p>
 
           <div>
@@ -201,6 +224,7 @@ defineExpose({ save, saving, saveMessage, formReady, speedWarning, seedWarning, 
               class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
             />
           </div>
+          <p v-if="ratioWarning" class="text-xs text-amber-400 -mt-2">{{ ratioWarning }}</p>
 
           <div class="grid grid-cols-2 gap-3">
             <div>
@@ -222,6 +246,7 @@ defineExpose({ save, saving, saveMessage, formReady, speedWarning, seedWarning, 
               />
             </div>
           </div>
+          <p v-if="peerWarning" class="text-xs text-amber-400 -mt-2">{{ peerWarning }}</p>
         </div>
       </div>
 

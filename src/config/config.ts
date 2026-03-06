@@ -8,11 +8,11 @@ const logger = createLogger('config');
 
 const configSchema = z.object({
   client: z.string().min(1),
-  port: z.number().int().min(0).max(65535).default(49152),
+  port: z.number().int().min(1).max(65535).default(49152),
   minUploadRate: z.number().min(0).default(100),
   maxUploadRate: z.number().min(0).default(500),
   simultaneousSeed: z.number().int().min(-1).refine((v) => v !== 0, { message: 'Must be -1 (unlimited) or >= 1' }).default(-1),
-  seedRotationInterval: z.number().int().refine((v) => v === -1 || v >= 1, { message: 'Must be -1 (disabled) or >= 1 minute' }).default(-1),
+  seedRotationInterval: z.number().int().min(1).max(999999).default(15),
   keepTorrentWithZeroLeechers: z.boolean().default(true),
   skipIfNoPeers: z.boolean().default(true),
   minLeechers: z.number().int().min(0).default(1),
@@ -87,7 +87,7 @@ function defaultConfig(): AppConfig {
     minUploadRate: 100,
     maxUploadRate: 500,
     simultaneousSeed: -1,
-    seedRotationInterval: -1,
+    seedRotationInterval: 15,
     keepTorrentWithZeroLeechers: true,
     skipIfNoPeers: true,
     minLeechers: 1,
@@ -108,24 +108,49 @@ export function loadConfig(): AppConfig {
     return cfg;
   }
 
+  let raw: Record<string, unknown>;
   try {
-    const raw = JSON.parse(readFileSync(CONFIG_PATH, 'utf-8'));
-    const result = configSchema.safeParse(raw);
-
-    if (!result.success) {
-      logger.warn({ errors: result.error.issues }, 'Invalid config.json — using defaults');
-      const cfg = defaultConfig();
-      saveConfig(cfg);
-      return cfg;
+    raw = JSON.parse(readFileSync(CONFIG_PATH, 'utf-8'));
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+      throw new Error('Not an object');
     }
-
-    return result.data as AppConfig;
   } catch {
     logger.warn('Could not parse config.json — using defaults');
     const cfg = defaultConfig();
     saveConfig(cfg);
     return cfg;
   }
+
+  // Try strict parse first — fast path for valid configs
+  const strict = configSchema.safeParse(raw);
+  if (strict.success) {
+    return strict.data as AppConfig;
+  }
+
+  // Merge: validate each field individually, keep valid ones, default the rest
+  const defaults = defaultConfig();
+  const repaired: Record<string, unknown> = {};
+  const repairedFields: string[] = [];
+
+  for (const key of Object.keys(configSchema.shape) as (keyof AppConfig)[]) {
+    if (key in raw) {
+      const fieldSchema = configSchema.shape[key];
+      const fieldResult = fieldSchema.safeParse(raw[key]);
+      if (fieldResult.success) {
+        repaired[key] = fieldResult.data;
+        continue;
+      }
+      repairedFields.push(key);
+    } else {
+      repairedFields.push(key);
+    }
+    repaired[key] = defaults[key];
+  }
+
+  logger.warn({ repairedFields }, 'Config had invalid entries — repaired with defaults');
+  const cfg = repaired as unknown as AppConfig;
+  saveConfig(cfg);
+  return cfg;
 }
 
 /**

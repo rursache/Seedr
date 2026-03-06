@@ -89,8 +89,8 @@ All configuration is managed through the web UI Settings panel. Settings are per
 | Port | 49152 | Listening port announced to trackers |
 | Min Upload Rate | 100 KB/s | Minimum simulated upload speed |
 | Max Upload Rate | 500 KB/s | Maximum simulated upload speed |
-| Simultaneous Seeds | -1 (all) | How many torrents to seed at once (-1 = unlimited) |
-| Seed Rotation Interval | -1 (disabled) | Minutes between rotating active torrents (-1 = no rotation) |
+| Max Active Torrents | -1 (all) | How many torrents to seed at once (-1 = unlimited) |
+| Seed Rotation Interval | 15 | Minutes between rotating active torrents (-1 = disabled) |
 | Upload Ratio Target | -1 (unlimited) | Stop seeding after reaching this ratio (-1 = never stop) |
 | Min Leechers | 1 | Only report upload when this many leechers are present |
 | Min Seeders | 1 | Only report upload when this many seeders are present |

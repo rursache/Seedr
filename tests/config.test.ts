@@ -23,6 +23,33 @@ const {
   validateConfigUpdate,
 } = await import('../src/config/config.js');
 
+/** A full valid config object for reuse in tests */
+function fullConfig(overrides: Record<string, unknown> = {}) {
+  return {
+    client: 'test-client.client',
+    port: 12345,
+    minUploadRate: 50,
+    maxUploadRate: 200,
+    simultaneousSeed: 5,
+    seedRotationInterval: 10,
+    keepTorrentWithZeroLeechers: false,
+    skipIfNoPeers: false,
+    minLeechers: 2,
+    minSeeders: 1,
+    uploadRatioTarget: 1.5,
+    showFileName: false,
+    ...overrides,
+  };
+}
+
+function writeConfig(data: unknown) {
+  writeFileSync(join(TEST_DATA_DIR, 'config.json'), JSON.stringify(data));
+}
+
+function readConfig(): Record<string, unknown> {
+  return JSON.parse(readFileSync(join(TEST_DATA_DIR, 'config.json'), 'utf-8'));
+}
+
 describe('Config', () => {
   beforeEach(() => {
     // Clean and recreate test dirs
@@ -48,80 +75,173 @@ describe('Config', () => {
       expect(config.minUploadRate).toBe(100);
       expect(config.maxUploadRate).toBe(500);
       expect(config.simultaneousSeed).toBe(-1);
+      expect(config.seedRotationInterval).toBe(15);
       expect(config.keepTorrentWithZeroLeechers).toBe(true);
       expect(config.skipIfNoPeers).toBe(true);
       expect(config.minLeechers).toBe(1);
       expect(config.minSeeders).toBe(1);
       expect(config.uploadRatioTarget).toBe(-1);
+      expect(config.showFileName).toBe(true);
+    });
+
+    it('should write the default config to disk', () => {
+      loadConfig();
+      const raw = readConfig();
+      expect(raw.port).toBe(49152);
+      expect(raw.seedRotationInterval).toBe(15);
+      expect(raw.showFileName).toBe(true);
     });
 
     it('should load existing valid config', () => {
-      const customConfig = {
-        client: 'test-client.client',
-        port: 12345,
-        minUploadRate: 50,
-        maxUploadRate: 200,
-        simultaneousSeed: 5,
-        keepTorrentWithZeroLeechers: false,
-        skipIfNoPeers: false,
-        minLeechers: 2,
-        minSeeders: 1,
-        uploadRatioTarget: 1.5,
-      };
-
-      writeFileSync(join(TEST_DATA_DIR, 'config.json'), JSON.stringify(customConfig));
+      writeConfig(fullConfig());
 
       const config = loadConfig();
       expect(config.port).toBe(12345);
       expect(config.minUploadRate).toBe(50);
       expect(config.maxUploadRate).toBe(200);
       expect(config.simultaneousSeed).toBe(5);
+      expect(config.seedRotationInterval).toBe(10);
       expect(config.keepTorrentWithZeroLeechers).toBe(false);
       expect(config.minLeechers).toBe(2);
       expect(config.minSeeders).toBe(1);
       expect(config.uploadRatioTarget).toBe(1.5);
+      expect(config.showFileName).toBe(false);
     });
 
-    it('should fall back to defaults on invalid config', () => {
-      writeFileSync(
-        join(TEST_DATA_DIR, 'config.json'),
-        JSON.stringify({ port: 'not-a-number', minUploadRate: -999 })
-      );
+    it('should apply defaults for missing fields while keeping valid ones', () => {
+      writeConfig({ client: 'custom.client', port: 9999 });
 
       const config = loadConfig();
-      // Should return defaults since config is invalid (missing client)
-      expect(config.port).toBe(49152);
+      // Provided fields preserved
+      expect(config.client).toBe('custom.client');
+      expect(config.port).toBe(9999);
+      // Missing fields get defaults
       expect(config.minUploadRate).toBe(100);
+      expect(config.maxUploadRate).toBe(500);
+      expect(config.simultaneousSeed).toBe(-1);
+      expect(config.seedRotationInterval).toBe(15);
+      expect(config.showFileName).toBe(true);
     });
 
-    it('should fall back to defaults on malformed JSON', () => {
-      writeFileSync(join(TEST_DATA_DIR, 'config.json'), 'this is not json{{{');
+    it('should repair only invalid fields and keep valid ones', () => {
+      writeConfig({
+        client: 'my-client.client',
+        port: 'not-a-number',       // invalid
+        minUploadRate: 200,          // valid
+        maxUploadRate: -5,           // invalid (< 0)
+        simultaneousSeed: 3,         // valid
+        seedRotationInterval: 0,     // invalid (< 1)
+        minLeechers: 4,              // valid
+      });
 
-      // Should not throw, should return defaults
+      const config = loadConfig();
+      // Valid fields preserved
+      expect(config.client).toBe('my-client.client');
+      expect(config.minUploadRate).toBe(200);
+      expect(config.simultaneousSeed).toBe(3);
+      expect(config.minLeechers).toBe(4);
+      // Invalid fields replaced with defaults
+      expect(config.port).toBe(49152);
+      expect(config.maxUploadRate).toBe(500);
+      expect(config.seedRotationInterval).toBe(15);
+    });
+
+    it('should save repaired config back to disk', () => {
+      writeConfig({ client: 'keep-me.client', port: -1 });
+
+      loadConfig();
+      const raw = readConfig();
+      expect(raw.client).toBe('keep-me.client');
+      expect(raw.port).toBe(49152); // repaired
+      expect(raw.seedRotationInterval).toBe(15); // filled default
+    });
+
+    it('should repair port=0 to default', () => {
+      writeConfig(fullConfig({ port: 0 }));
+      const config = loadConfig();
+      expect(config.port).toBe(49152);
+    });
+
+    it('should repair port > 65535', () => {
+      writeConfig(fullConfig({ port: 99999 }));
+      const config = loadConfig();
+      expect(config.port).toBe(49152);
+    });
+
+    it('should repair simultaneousSeed=0', () => {
+      writeConfig(fullConfig({ simultaneousSeed: 0 }));
+      const config = loadConfig();
+      expect(config.simultaneousSeed).toBe(-1);
+    });
+
+    it('should repair seedRotationInterval=0', () => {
+      writeConfig(fullConfig({ seedRotationInterval: 0 }));
+      const config = loadConfig();
+      expect(config.seedRotationInterval).toBe(15);
+    });
+
+    it('should repair seedRotationInterval > 999999', () => {
+      writeConfig(fullConfig({ seedRotationInterval: 1000000 }));
+      const config = loadConfig();
+      expect(config.seedRotationInterval).toBe(15);
+    });
+
+    it('should repair negative minLeechers', () => {
+      writeConfig(fullConfig({ minLeechers: -1 }));
+      const config = loadConfig();
+      expect(config.minLeechers).toBe(1);
+    });
+
+    it('should repair non-boolean showFileName', () => {
+      writeConfig(fullConfig({ showFileName: 'yes' }));
+      const config = loadConfig();
+      expect(config.showFileName).toBe(true);
+    });
+
+    it('should fall back to full defaults on malformed JSON', () => {
+      writeFileSync(join(TEST_DATA_DIR, 'config.json'), 'this is not json{{{');
       expect(() => loadConfig()).not.toThrow();
+      const config = loadConfig();
+      expect(config.port).toBe(49152);
+    });
+
+    it('should fall back to full defaults on non-object JSON', () => {
+      writeConfig([1, 2, 3]);
+      const config = loadConfig();
+      expect(config.port).toBe(49152);
+    });
+
+    it('should fall back to full defaults on null JSON', () => {
+      writeConfig(null);
+      const config = loadConfig();
+      expect(config.port).toBe(49152);
+    });
+
+    it('should strip unknown keys during repair', () => {
+      writeConfig(fullConfig({ unknownKey: 'hello', anotherBad: 42 }));
+      const config = loadConfig();
+      expect(config).not.toHaveProperty('unknownKey');
+      expect(config).not.toHaveProperty('anotherBad');
     });
   });
 
   describe('saveConfig', () => {
     it('should persist config to disk', () => {
-      const config = {
-        client: 'test.client',
-        port: 8080,
-        minUploadRate: 100,
-        maxUploadRate: 500,
-        simultaneousSeed: 10,
-        keepTorrentWithZeroLeechers: true,
-        skipIfNoPeers: true,
-        minLeechers: 0,
-        minSeeders: 0,
-        uploadRatioTarget: -1,
-      };
-
+      const config = fullConfig();
       saveConfig(config);
 
-      const raw = JSON.parse(readFileSync(join(TEST_DATA_DIR, 'config.json'), 'utf-8'));
-      expect(raw.port).toBe(8080);
-      expect(raw.client).toBe('test.client');
+      const raw = readConfig();
+      expect(raw.port).toBe(12345);
+      expect(raw.client).toBe('test-client.client');
+      expect(raw.seedRotationInterval).toBe(10);
+      expect(raw.showFileName).toBe(false);
+    });
+
+    it('should roundtrip through save and load', () => {
+      const config = fullConfig();
+      saveConfig(config);
+      const loaded = loadConfig();
+      expect(loaded).toEqual(config);
     });
   });
 
@@ -199,6 +319,25 @@ describe('Config', () => {
       expect(result).toEqual({});
     });
 
+    // Port validation
+    it('should reject port=0', () => {
+      expect(() => validateConfigUpdate({ port: 0 })).toThrow();
+    });
+
+    it('should reject port > 65535', () => {
+      expect(() => validateConfigUpdate({ port: 99999 })).toThrow();
+    });
+
+    it('should reject non-integer port', () => {
+      expect(() => validateConfigUpdate({ port: 80.5 })).toThrow();
+    });
+
+    it('should accept valid port', () => {
+      expect(validateConfigUpdate({ port: 1 })).toEqual({ port: 1 });
+      expect(validateConfigUpdate({ port: 65535 })).toEqual({ port: 65535 });
+    });
+
+    // simultaneousSeed validation
     it('should reject simultaneousSeed=0', () => {
       expect(() => validateConfigUpdate({ simultaneousSeed: 0 })).toThrow('Must be -1 (unlimited) or >= 1');
     });
@@ -213,13 +352,69 @@ describe('Config', () => {
       expect(result).toEqual({ simultaneousSeed: 1 });
     });
 
-    it('should reject invalid types', () => {
-      expect(() => validateConfigUpdate({ port: 'not-a-number' })).toThrow();
+    it('should reject simultaneousSeed < -1', () => {
+      expect(() => validateConfigUpdate({ simultaneousSeed: -2 })).toThrow();
     });
 
-    it('should reject out-of-range values', () => {
-      expect(() => validateConfigUpdate({ port: 99999 })).toThrow();
+    // seedRotationInterval validation
+    it('should reject seedRotationInterval=0', () => {
+      expect(() => validateConfigUpdate({ seedRotationInterval: 0 })).toThrow();
+    });
+
+    it('should reject seedRotationInterval=-1', () => {
+      expect(() => validateConfigUpdate({ seedRotationInterval: -1 })).toThrow();
+    });
+
+    it('should reject seedRotationInterval > 999999', () => {
+      expect(() => validateConfigUpdate({ seedRotationInterval: 1000000 })).toThrow();
+    });
+
+    it('should accept seedRotationInterval=1', () => {
+      expect(validateConfigUpdate({ seedRotationInterval: 1 })).toEqual({ seedRotationInterval: 1 });
+    });
+
+    it('should accept seedRotationInterval=999999', () => {
+      expect(validateConfigUpdate({ seedRotationInterval: 999999 })).toEqual({ seedRotationInterval: 999999 });
+    });
+
+    // Upload rate validation
+    it('should reject negative upload rates', () => {
       expect(() => validateConfigUpdate({ minUploadRate: -5 })).toThrow();
+      expect(() => validateConfigUpdate({ maxUploadRate: -1 })).toThrow();
+    });
+
+    it('should accept zero upload rates', () => {
+      expect(validateConfigUpdate({ minUploadRate: 0 })).toEqual({ minUploadRate: 0 });
+    });
+
+    // Peer count validation
+    it('should reject negative minLeechers', () => {
+      expect(() => validateConfigUpdate({ minLeechers: -1 })).toThrow();
+    });
+
+    it('should reject negative minSeeders', () => {
+      expect(() => validateConfigUpdate({ minSeeders: -1 })).toThrow();
+    });
+
+    it('should accept zero peer counts', () => {
+      expect(validateConfigUpdate({ minLeechers: 0, minSeeders: 0 })).toEqual({ minLeechers: 0, minSeeders: 0 });
+    });
+
+    // Boolean validation
+    it('should reject non-boolean for boolean fields', () => {
+      expect(() => validateConfigUpdate({ showFileName: 'yes' as any })).toThrow();
+      expect(() => validateConfigUpdate({ keepTorrentWithZeroLeechers: 1 as any })).toThrow();
+      expect(() => validateConfigUpdate({ skipIfNoPeers: 0 as any })).toThrow();
+    });
+
+    it('should accept boolean values', () => {
+      expect(validateConfigUpdate({ showFileName: false })).toEqual({ showFileName: false });
+      expect(validateConfigUpdate({ keepTorrentWithZeroLeechers: true })).toEqual({ keepTorrentWithZeroLeechers: true });
+    });
+
+    // Type validation
+    it('should reject invalid types', () => {
+      expect(() => validateConfigUpdate({ port: 'not-a-number' })).toThrow();
     });
 
     it('should filter out unknown keys', () => {
