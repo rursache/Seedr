@@ -21,6 +21,7 @@ const hasErrors = computed(() => store.events.some(e => e.id > lastSeenEventId.v
 // Settings modal save via exposed ref
 const settingsRef = ref<InstanceType<typeof Settings> | null>(null);
 const settingsSaving = computed(() => settingsRef.value?.saving ?? false);
+const settingsFormReady = computed(() => settingsRef.value?.formReady ?? false);
 const settingsSaveMessage = computed(() => settingsRef.value?.saveMessage ?? null);
 function saveSettings() { settingsRef.value?.save(); }
 
@@ -288,8 +289,8 @@ onUnmounted(() => {
                   </button>
                   <button
                     @click="saveSettings"
-                    :disabled="settingsSaving"
-                    class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 border border-emerald-600 text-white rounded-lg text-xs font-medium transition-colors"
+                    :disabled="settingsSaving || !settingsFormReady"
+                    class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed border border-emerald-600 text-white rounded-lg text-xs font-medium transition-colors"
                   >
                     {{ settingsSaving ? 'Saving...' : 'Save' }}
                   </button>
