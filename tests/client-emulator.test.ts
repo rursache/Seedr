@@ -1,17 +1,16 @@
 import { describe, it, expect } from 'vitest';
+import { generateKey, generatePeerId } from '../src/core/client-emulator/generators.js';
+import { buildAnnounceQuery } from '../src/core/client-emulator/query-builder.js';
 import {
-  generateKey,
-  generatePeerId,
-  buildAnnounceQuery,
   shouldRefreshKey,
   shouldRefreshPeerId,
-  loadClientProfile,
-  type EmulatorState,
-} from '../src/core/client-emulator.js';
+} from '../src/core/client-emulator/refresh-policy.js';
+import { loadClientProfile } from '../src/core/client-emulator/profile-loader.js';
 import type {
   KeyGenerator,
   PeerIdGenerator,
   ClientProfile,
+  EmulatorState,
 } from '../src/config/types.js';
 import { join } from 'node:path';
 

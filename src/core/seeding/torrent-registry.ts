@@ -1,10 +1,15 @@
 import { readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { TORRENTS_DIR } from '../../config/config.js';
-import type { AnnounceEvent, TorrentRuntimeState, TorrentSeedState } from '../../config/types.js';
+import type {
+  AnnounceEvent,
+  EmulatorState,
+  TorrentRuntimeState,
+  TorrentSeedState,
+} from '../../config/types.js';
 import { createLogger } from '../../utils/logger.js';
 import { parseTorrentFile, infoHashToHex } from '../torrent-parser.js';
-import { generateKey, generatePeerId, type EmulatorState } from '../client-emulator.js';
+import { generateKey, generatePeerId } from '../client-emulator/generators.js';
 import { activateNextQueued, getSlotOccupyingTorrents } from './slot-manager.js';
 import type { SeedContext } from './context.js';
 

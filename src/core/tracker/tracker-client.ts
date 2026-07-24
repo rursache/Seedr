@@ -1,6 +1,6 @@
 import type { AnnounceEvent, AnnounceResponse, ClientProfile } from '../../config/types.js';
-import type { QueryParams } from '../client-emulator.js';
-import { buildAnnounceQuery, getRequestHeaders } from '../client-emulator.js';
+import type { QueryParams } from '../client-emulator/query-builder.js';
+import { buildAnnounceQuery, getRequestHeaders } from '../client-emulator/query-builder.js';
 import { httpAnnounce } from './http-tracker.js';
 import { udpAnnounce } from './udp-tracker.js';
 import { createLogger } from '../../utils/logger.js';

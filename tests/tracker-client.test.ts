@@ -9,7 +9,7 @@ vi.mock('../src/core/tracker/udp-tracker.js', () => ({
   udpAnnounce: vi.fn(),
 }));
 
-vi.mock('../src/core/client-emulator.js', () => ({
+vi.mock('../src/core/client-emulator/query-builder.js', () => ({
   buildAnnounceQuery: vi.fn(() => 'info_hash=test&peer_id=test'),
   getRequestHeaders: vi.fn(() => [{ name: 'User-Agent', value: 'test/1.0' }]),
 }));
@@ -18,7 +18,7 @@ import { announce } from '../src/core/tracker/tracker-client.js';
 import { httpAnnounce } from '../src/core/tracker/http-tracker.js';
 import { udpAnnounce } from '../src/core/tracker/udp-tracker.js';
 import type { AnnounceResponse, ClientProfile } from '../src/config/types.js';
-import type { QueryParams } from '../src/core/client-emulator.js';
+import type { QueryParams } from '../src/core/client-emulator/query-builder.js';
 
 const mockedHttp = vi.mocked(httpAnnounce);
 const mockedUdp = vi.mocked(udpAnnounce);

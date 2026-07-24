@@ -5,19 +5,26 @@ import type {
   TorrentMeta,
   TorrentSeedState,
 } from '../src/config/types.js';
-import type { EmulatorState } from '../src/core/client-emulator.js';
+import type { EmulatorState } from '../src/config/types.js';
 
 // Mock the tracker client and client-emulator
 vi.mock('../src/core/tracker/tracker-client.js', () => ({
   announce: vi.fn(),
 }));
 
-vi.mock('../src/core/client-emulator.js', async (importOriginal) => {
+vi.mock('../src/core/client-emulator/refresh-policy.js', async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>;
   return {
     ...actual,
     shouldRefreshKey: vi.fn(() => false),
     shouldRefreshPeerId: vi.fn(() => false),
+  };
+});
+
+vi.mock('../src/core/client-emulator/generators.js', async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>;
+  return {
+    ...actual,
     generateKey: vi.fn(() => 'newkey'),
     generatePeerId: vi.fn(() => Buffer.from('newpeerid12345678901')),
   };
@@ -25,7 +32,10 @@ vi.mock('../src/core/client-emulator.js', async (importOriginal) => {
 
 import { performAnnounce } from '../src/core/announcer.js';
 import { announce as mockAnnounce } from '../src/core/tracker/tracker-client.js';
-import { shouldRefreshKey, shouldRefreshPeerId } from '../src/core/client-emulator.js';
+import {
+  shouldRefreshKey,
+  shouldRefreshPeerId,
+} from '../src/core/client-emulator/refresh-policy.js';
 
 const mockedAnnounce = vi.mocked(mockAnnounce);
 

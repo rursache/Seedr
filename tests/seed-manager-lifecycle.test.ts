@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as configModule from '../src/config/config.js';
-import * as clientEmulatorModule from '../src/core/client-emulator.js';
+import * as profileLoaderModule from '../src/core/client-emulator/profile-loader.js';
+import * as generatorsModule from '../src/core/client-emulator/generators.js';
 import * as torrentParserModule from '../src/core/torrent-parser.js';
 import { SeedManager } from '../src/core/seed-manager.js';
 import type { AppConfig, TorrentRuntimeState } from '../src/config/types.js';
@@ -153,7 +154,7 @@ describe('SeedManager lifecycle and config updates', () => {
 
   it('reloads the client profile and regenerates peer IDs and keys on client change', async () => {
     const saveSpy = vi.spyOn(configModule, 'saveConfig').mockImplementation(() => {});
-    const loadSpy = vi.spyOn(clientEmulatorModule, 'loadClientProfile').mockReturnValue({
+    const loadSpy = vi.spyOn(profileLoaderModule, 'loadClientProfile').mockReturnValue({
       keyGenerator: { algorithm: { type: 'HASH', length: 8 }, refreshOn: 'NEVER', keyCase: 'upper' },
       peerIdGenerator: { algorithm: { type: 'REGEX', pattern: '-TR3000-[A-Za-z0-9]{12}' }, refreshOn: 'NEVER', shouldUrlEncode: false },
       urlEncoder: { encodingExclusionPattern: '[A-Za-z0-9]', encodedHexCase: 'upper' },
@@ -162,8 +163,8 @@ describe('SeedManager lifecycle and config updates', () => {
       numwantOnStop: 0,
       requestHeaders: [],
     } as any);
-    const peerSpy = vi.spyOn(clientEmulatorModule, 'generatePeerId').mockReturnValue(Buffer.from('new-peer-id-12345678'));
-    const keySpy = vi.spyOn(clientEmulatorModule, 'generateKey').mockReturnValue('NEWKEY12');
+    const peerSpy = vi.spyOn(generatorsModule, 'generatePeerId').mockReturnValue(Buffer.from('new-peer-id-12345678'));
+    const keySpy = vi.spyOn(generatorsModule, 'generateKey').mockReturnValue('NEWKEY12');
 
     mkdirSync(configModule.CLIENTS_DIR, { recursive: true });
     const filePath = join(configModule.CLIENTS_DIR, 'test-switch.client');
@@ -193,7 +194,7 @@ describe('SeedManager lifecycle and config updates', () => {
 
   it('keeps config and runtime state unchanged if client profile loading fails', async () => {
     const saveSpy = vi.spyOn(configModule, 'saveConfig').mockImplementation(() => {});
-    const loadSpy = vi.spyOn(clientEmulatorModule, 'loadClientProfile').mockImplementation(() => {
+    const loadSpy = vi.spyOn(profileLoaderModule, 'loadClientProfile').mockImplementation(() => {
       throw new Error('invalid profile');
     });
     const originalConfig = makeConfig();

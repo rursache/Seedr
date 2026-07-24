@@ -1,5 +1,11 @@
-import type { AppConfig, SeedState, TorrentRuntimeState, AnnounceEvent, ClientProfile } from '../../config/types.js';
-import type { EmulatorState } from '../client-emulator.js';
+import type {
+  AppConfig,
+  SeedState,
+  TorrentRuntimeState,
+  AnnounceEvent,
+  ClientProfile,
+  EmulatorState,
+} from '../../config/types.js';
 import type { BandwidthDispatcher } from '../bandwidth-dispatcher.js';
 import type { Scheduler } from '../scheduler.js';
 import type { ConnectionHandler } from '../connection-handler.js';

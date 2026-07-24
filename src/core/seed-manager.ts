@@ -10,9 +10,10 @@ import type {
   TorrentListItem,
   AnnounceEvent,
   ClientProfile,
+  EmulatorState,
   PortCheckStatus,
 } from '../config/types.js';
-import { loadClientProfile, type EmulatorState } from './client-emulator.js';
+import { loadClientProfile } from './client-emulator/profile-loader.js';
 import { BandwidthDispatcher } from './bandwidth-dispatcher.js';
 import { Scheduler } from './scheduler.js';
 import { ConnectionHandler, type ConnectionContext } from './connection-handler.js';

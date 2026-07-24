@@ -3,7 +3,8 @@ import { join } from 'node:path';
 import { CLIENTS_DIR, saveConfig } from '../../config/config.js';
 import type { AppConfig } from '../../config/types.js';
 import { createLogger } from '../../utils/logger.js';
-import { loadClientProfile, generateKey, generatePeerId } from '../client-emulator.js';
+import { loadClientProfile } from '../client-emulator/profile-loader.js';
+import { generateKey, generatePeerId } from '../client-emulator/generators.js';
 import { checkRatioTarget, checkTorrentEligible } from './announce-policy.js';
 import type { SeedContext } from './context.js';
 

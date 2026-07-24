@@ -2,16 +2,13 @@ import type {
   AnnounceEvent,
   AnnounceResponse,
   ClientProfile,
+  EmulatorState,
   TorrentMeta,
   TorrentSeedState,
 } from '../config/types.js';
-import type { EmulatorState, QueryParams } from './client-emulator.js';
-import {
-  generateKey,
-  generatePeerId,
-  shouldRefreshKey,
-  shouldRefreshPeerId,
-} from './client-emulator.js';
+import type { QueryParams } from './client-emulator/query-builder.js';
+import { generateKey, generatePeerId } from './client-emulator/generators.js';
+import { shouldRefreshKey, shouldRefreshPeerId } from './client-emulator/refresh-policy.js';
 import { announce } from './tracker/tracker-client.js';
 import { createLogger } from '../utils/logger.js';
 

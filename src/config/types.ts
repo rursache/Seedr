@@ -161,6 +161,15 @@ export interface AppConfig {
 
 // ── Runtime types ──
 
+/** Per-torrent client emulation state (peer ID, key and refresh counters). */
+export interface EmulatorState {
+  peerId: Buffer;
+  key: string;
+  announceCount: number;
+  startedAnnouncesSent: number;
+  lastKeyRefresh: number;
+}
+
 export interface TorrentRuntimeState {
   meta: TorrentMeta;
   seedState: TorrentSeedState;
