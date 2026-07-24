@@ -19,7 +19,7 @@ function createMockSeedManager() {
     isRunning: vi.fn(() => false),
     start: vi.fn(),
     stop: vi.fn(),
-    recheckPort: vi.fn(),
+    runPortCheck: vi.fn(),
   }) as any;
 }
 

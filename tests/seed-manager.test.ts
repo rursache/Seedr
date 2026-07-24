@@ -1,5 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
-import { SeedManager, checkTorrentEligible, checkRatioTarget, getAnnounceRetryDelay, isRotationEligible, isTransientAnnounceError } from '../src/core/seed-manager.js';
+import { SeedManager } from '../src/core/seed-manager.js';
+import {
+  checkTorrentEligible,
+  checkRatioTarget,
+  getAnnounceRetryDelay,
+  isRotationEligible,
+  isTransientAnnounceError,
+} from '../src/core/seeding/announce-policy.js';
+import { getSlotOccupyingTorrents } from '../src/core/seeding/slot-manager.js';
 import type { AppConfig, TorrentRuntimeState } from '../src/config/types.js';
 import * as configModule from '../src/config/config.js';
 
@@ -405,7 +413,7 @@ describe('SeedManager active slot handling', () => {
 
     expect(completed.active).toBe(true);
     expect(queued.active).toBe(true);
-    expect(manager.getSlotOccupyingTorrents()).toEqual([[queued.seedState.infoHash, queued]]);
+    expect(getSlotOccupyingTorrents(manager)).toEqual([[queued.seedState.infoHash, queued]]);
   });
 
   it('promotes the next queued torrent when an active slot is removed while stopped', async () => {
@@ -494,7 +502,7 @@ describe('SeedManager active slot handling', () => {
 
     expect(current.completed).toBe(true);
     expect(queued.active).toBe(true);
-    expect(manager.getSlotOccupyingTorrents()).toEqual([[queued.seedState.infoHash, queued]]);
+    expect(getSlotOccupyingTorrents(manager)).toEqual([[queued.seedState.infoHash, queued]]);
 
     saveSpy.mockRestore();
   });

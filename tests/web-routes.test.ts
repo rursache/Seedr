@@ -30,7 +30,7 @@ function createMockSeedManager() {
     getConfig: vi.fn(() => ({ client: 'test', port: 49152 })),
     updateConfig: vi.fn((cfg: unknown) => cfg),
     getClientFiles: vi.fn(() => ['qbittorrent-5.1.0', 'deluge-2.1.1']),
-    recheckPort: vi.fn(),
+    runPortCheck: vi.fn(),
   } as any;
 }
 

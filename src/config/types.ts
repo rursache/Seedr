@@ -180,6 +180,26 @@ export interface TorrentRuntimeState {
   lastFailureTransient: boolean; // last announce failure was transient and is on a short retry path
 }
 
+/** Flattened per-torrent shape served to the UI. */
+export interface TorrentListItem {
+  infoHash: string;
+  name: string;
+  fileName: string;
+  size: number;
+  uploaded: number;
+  reportedUploaded: number;
+  seeders: number;
+  leechers: number;
+  active: boolean;
+  seeding: boolean;
+  completed: boolean;
+  lastFailureTransient: boolean;
+  tracker: string;
+  uploadRate: number;
+  consecutiveFailures: number;
+  addedIndex: number;
+}
+
 export interface PortCheckStatus {
   checking: boolean;
   result: { reachable: boolean; nodes: Array<{ location: string; success: boolean; time?: number; error?: string }> } | null;

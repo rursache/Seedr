@@ -27,7 +27,7 @@ export function registerControlRoutes(server: FastifyInstance, seedManager: Seed
       });
     }
 
-    await seedManager.recheckPort();
+    await seedManager.runPortCheck();
     return seedManager.getStatus().portCheck;
   });
 }
