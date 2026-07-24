@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { useWebSocket } from '../composables/useWebSocket';
 
-interface TorrentInfo {
+export interface TorrentInfo {
   infoHash: string;
   name: string;
   fileName: string;

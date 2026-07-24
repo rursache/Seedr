@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, reactive } from 'vue';
 import { useSeedrStore } from '../stores/seedr';
-import { formatBytes, formatSpeed } from '../utils/format';
-import { getTorrentStatusBadge } from '../utils/torrent-status';
+import { trackerHost, trackerName } from '../utils/tracker';
+import TorrentRow from './TorrentRow.vue';
 
 const store = useSeedrStore();
 
@@ -40,24 +40,6 @@ function toggleCollapse(tracker: string) {
   }
 }
 
-function trackerHost(url: string): string {
-  try { return new URL(url).hostname; } catch { return url || 'Unknown'; }
-}
-
-/**
- * Derive a human-friendly tracker name from the hostname.
- * e.g. "tracker.scenetime.com" → "Scenetime", "flacsfor.me" → "Flacsfor"
- */
-function trackerName(hostname: string): string {
-  // Remove common prefixes
-  const stripped = hostname.replace(/^(tracker[0-9]*|announce|tr|www)\./, '');
-  // Take the domain name part (before TLD)
-  const parts = stripped.split('.');
-  const name = parts.length >= 2 ? parts[parts.length - 2]! : parts[0]!;
-  // Title-case
-  return name.charAt(0).toUpperCase() + name.slice(1);
-}
-
 const sortedTorrents = computed(() => {
   const q = search.value.toLowerCase().trim();
   const list = q
@@ -86,30 +68,7 @@ const groupedTorrents = computed(() => {
 
 function sortIndicator(field: SortField): string {
   if (sortField.value !== field) return '';
-  return sortDir.value === 'asc' ? ' \u25B2' : ' \u25BC';
-}
-
-function torrentStatus(torrent: { active: boolean; seeding: boolean; completed: boolean; lastFailureTransient: boolean; consecutiveFailures: number; seeders: number; leechers: number }): { label: string; class: string } {
-  return getTorrentStatusBadge(torrent, store.status?.running, store.isTorrentEligible(torrent as any));
-}
-
-const confirmingRemove = ref<string | null>(null);
-let confirmTimer: ReturnType<typeof setTimeout> | undefined;
-
-function remove(infoHash: string) {
-  if (confirmingRemove.value === infoHash) {
-    clearTimeout(confirmTimer);
-    confirmingRemove.value = null;
-    store.removeTorrent(infoHash);
-  } else {
-    confirmingRemove.value = infoHash;
-    clearTimeout(confirmTimer);
-    confirmTimer = setTimeout(() => { confirmingRemove.value = null; }, 3000);
-  }
-}
-
-async function announce(infoHash: string) {
-  await store.forceAnnounce(infoHash);
+  return sortDir.value === 'asc' ? ' ▲' : ' ▼';
 }
 </script>
 
@@ -170,59 +129,12 @@ async function announce(infoHash: string) {
           :class="collapsedGroups.has(group.host) ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'"
         >
           <div class="overflow-hidden min-h-0">
-            <div
+            <TorrentRow
               v-for="torrent in group.torrents"
               :key="torrent.infoHash"
-              class="px-4 py-3 hover:bg-gray-800/50 transition-colors border-t border-gray-800"
-            >
-              <!-- Row 1: Name + status badge -->
-              <div class="flex items-center justify-between gap-3">
-                <div
-                  class="text-base font-medium text-white truncate"
-                  :title="showFileName ? torrent.name : torrent.fileName"
-                >{{ showFileName ? torrent.fileName : torrent.name }}</div>
-                <span
-                  class="text-xs px-2 py-0.5 rounded shrink-0"
-                  :class="torrentStatus(torrent).class"
-                >
-                  {{ torrentStatus(torrent).label }}
-                </span>
-              </div>
-
-              <!-- Row 2: Stats + Actions -->
-              <div class="flex flex-wrap items-center justify-between mt-1.5 gap-y-1.5">
-                <div class="flex items-center flex-wrap gap-x-3 gap-y-1 text-[0.8rem] text-gray-500">
-                  <span>{{ formatBytes(torrent.size) }}</span>
-                  <span v-if="torrent.seeding || torrent.completed">
-                    <span class="text-emerald-400">S:{{ torrent.seeders }}</span>
-                    <span class="mx-1">/</span>
-                    <span class="text-amber-400">L:{{ torrent.leechers }}</span>
-                  </span>
-                  <span v-else class="text-gray-600">S:-- / L:--</span>
-                  <span class="text-blue-400">{{ torrent.seeding && !torrent.completed ? formatSpeed(torrent.uploadRate || 0) : '--' }}</span>
-                  <span title="Local simulated upload">Local: {{ formatBytes(torrent.uploaded) }}</span>
-                  <span class="hidden sm:inline text-gray-600" title="Reported to tracker">Reported: {{ formatBytes(torrent.reportedUploaded) }}</span>
-                </div>
-                <div class="flex items-center gap-2 shrink-0">
-                  <button
-                    v-if="torrent.active && store.status?.running"
-                    @click="announce(torrent.infoHash)"
-                    class="text-xs text-gray-500 hover:text-blue-400 bg-blue-500/5 hover:bg-blue-500/10 border border-blue-500/10 hover:border-blue-500/20 px-2.5 py-1 rounded-lg transition-all"
-                  >
-                    <span class="hidden sm:inline">Force </span>Announce
-                  </button>
-                  <button
-                    @click="remove(torrent.infoHash)"
-                    class="text-xs px-2.5 py-1 rounded-lg transition-all"
-                    :class="confirmingRemove === torrent.infoHash
-                      ? 'text-red-400 bg-red-500/20 border border-red-500/40'
-                      : 'text-gray-500 hover:text-red-400 bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 hover:border-red-500/20'"
-                  >
-                    {{ confirmingRemove === torrent.infoHash ? 'Confirm?' : 'Remove' }}
-                  </button>
-                </div>
-              </div>
-            </div>
+              :torrent="torrent"
+              :show-file-name="showFileName"
+            />
           </div>
         </div>
       </div>
