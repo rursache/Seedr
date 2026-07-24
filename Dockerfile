@@ -1,5 +1,5 @@
 ## Build stage - Backend
-FROM node:22-alpine AS build-backend
+FROM node:24-alpine AS build-backend
 WORKDIR /app
 ARG VERSION=dev
 ARG COMMIT=unknown
@@ -12,7 +12,7 @@ COPY scripts/ scripts/
 RUN VERSION=${VERSION} COMMIT=${COMMIT} BUILD_DATE=${BUILD_DATE} sh scripts/version.sh && npx tsc && cp src/version.json dist/version.json
 
 ## Build stage - Frontend
-FROM node:22-alpine AS build-ui
+FROM node:24-alpine AS build-ui
 WORKDIR /app/ui
 COPY ui/package.json ui/package-lock.json ./
 RUN npm ci
@@ -20,7 +20,7 @@ COPY ui/ .
 RUN npm run build
 
 ## Production stage
-FROM node:22-alpine
+FROM node:24-alpine
 WORKDIR /app
 
 # su-exec for PUID/PGID support

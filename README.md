@@ -62,7 +62,7 @@ npm run build && npm start -- --demo
 
 ### Local development
 
-Requires Node.js 22+.
+Requires Node.js 24+.
 
 ```bash
 # Install dependencies

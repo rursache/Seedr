@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createPinia, setActivePinia } from '../ui/node_modules/pinia/dist/pinia.mjs';
-import { ref } from '../ui/node_modules/vue/index.mjs';
+import { createPinia, setActivePinia } from 'pinia';
+import { ref } from 'vue';
 
 type Handler = (payload?: any) => void;
 

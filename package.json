@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "BitTorrent ratio master - emulates BT clients and reports upload to private trackers",
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "sh scripts/version.sh && tsc && cp src/version.json dist/version.json && cd ui && npm run build",
@@ -26,7 +29,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^22.13.4",
+    "@types/node": "^24.13.3",
     "tsx": "^4.19.3",
     "typescript": "^5.7.3",
     "vitest": "^4.1.10"
