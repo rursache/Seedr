@@ -1,75 +1,19 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { useWebSocket } from '../composables/useWebSocket';
+import * as api from '../services/api';
+import type {
+  AppConfig,
+  PortCheckStatus,
+  SeedrEvent,
+  SeedrState,
+  TorrentInfo,
+  VersionInfo,
+} from '../types';
 
-export interface TorrentInfo {
-  infoHash: string;
-  name: string;
-  fileName: string;
-  size: number;
-  uploaded: number;
-  reportedUploaded: number;
-  seeders: number;
-  leechers: number;
-  active: boolean;
-  seeding: boolean;
-  completed: boolean;
-  lastFailureTransient: boolean;
-  tracker: string;
-  uploadRate?: number;
-  consecutiveFailures: number;
-  addedIndex: number; // insertion order from backend
-}
-
-interface AppConfig {
-  client: string;
-  port: number;
-  minUploadRate: number;
-  maxUploadRate: number;
-  simultaneousSeed: number;
-  seedRotationInterval: number;
-  keepTorrentWithZeroLeechers: boolean;
-  skipIfNoPeers: boolean;
-  minLeechers: number;
-  minSeeders: number;
-  uploadRatioTarget: number;
-  showFileName: boolean;
-}
-
-interface PortCheckStatus {
-  checking: boolean;
-  result: { reachable: boolean; nodes: Array<{ location: string; success: boolean; time?: number; error?: string }> } | null;
-  error: string | null;
-}
-
-interface SeedrState {
-  running: boolean;
-  externalIp: string | null;
-  externalIpv6: string | null;
-  port: number;
-  client: string;
-  globalUploadRate: number;
-  actualUploadRate: number;
-  torrents: any[];
-  uptime: number;
-  portCheck: PortCheckStatus;
-}
-
-export interface SeedrEvent {
-  id: number;
-  type: string;
-  data: any;
-  time: number;
-}
+export type { TorrentInfo, SeedrEvent } from '../types';
 
 let nextEventId = 1;
-
-interface VersionInfo {
-  version: string;
-  commit: string;
-  buildDate: string;
-  isTagged: boolean;
-}
 
 export const useSeedrStore = defineStore('seedr', () => {
   const config = ref<AppConfig | null>(null);
@@ -90,7 +34,7 @@ export const useSeedrStore = defineStore('seedr', () => {
 
   async function checkPort() {
     try {
-      await fetch('/api/control/port-check', { method: 'POST' });
+      await api.postPortCheck();
     } catch { /* state broadcast will update UI */ }
   }
 
@@ -146,12 +90,10 @@ export const useSeedrStore = defineStore('seedr', () => {
     torrents.value = [];
   });
 
-  // REST API calls
+  // REST API calls — see services/api.ts for the transport
   async function fetchConfig() {
     try {
-      const res = await fetch('/api/config');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      config.value = await res.json();
+      config.value = await api.getConfig();
       configLoaded.value = true;
     } catch (e) {
       console.error('Failed to fetch config:', e);
@@ -159,20 +101,12 @@ export const useSeedrStore = defineStore('seedr', () => {
   }
 
   async function updateConfig(updates: Partial<AppConfig>) {
-    const res = await fetch('/api/config', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    config.value = await res.json();
+    config.value = await api.putConfig(updates);
   }
 
   async function fetchVersion() {
     try {
-      const res = await fetch('/api/version');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      versionInfo.value = await res.json();
+      versionInfo.value = await api.getVersion();
     } catch (e) {
       console.error('Failed to fetch version:', e);
     }
@@ -180,9 +114,7 @@ export const useSeedrStore = defineStore('seedr', () => {
 
   async function fetchClients() {
     try {
-      const res = await fetch('/api/config/clients');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      clients.value = await res.json();
+      clients.value = await api.getClients();
     } catch (e) {
       console.error('Failed to fetch clients:', e);
     }
@@ -190,9 +122,7 @@ export const useSeedrStore = defineStore('seedr', () => {
 
   async function fetchStatus() {
     try {
-      const res = await fetch('/api/control/status');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      status.value = await res.json();
+      status.value = await api.getStatus();
     } catch (e) {
       console.error('Failed to fetch status:', e);
     }
@@ -200,26 +130,21 @@ export const useSeedrStore = defineStore('seedr', () => {
 
   async function fetchTorrents() {
     try {
-      const res = await fetch('/api/torrents');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      torrents.value = await res.json();
+      torrents.value = await api.getTorrents();
     } catch (e) {
       console.error('Failed to fetch torrents:', e);
     }
   }
 
   async function uploadTorrent(file: File): Promise<{ success?: boolean; error?: string }> {
-    const formData = new FormData();
-    formData.append('file', file);
-    const res = await fetch('/api/torrents', { method: 'POST', body: formData });
-    const result = await res.json();
+    const result = await api.postTorrent(file);
     await fetchTorrents();
     return result;
   }
 
   async function forceAnnounce(infoHash: string) {
     try {
-      await fetch(`/api/torrents/${infoHash}/announce`, { method: 'POST' });
+      await api.postAnnounce(infoHash);
     } catch {
       // Silently fail — result will show in events
     }
@@ -228,8 +153,7 @@ export const useSeedrStore = defineStore('seedr', () => {
   async function removeTorrent(infoHash: string) {
     torrents.value = torrents.value.filter((t) => t.infoHash !== infoHash);
     try {
-      const res = await fetch(`/api/torrents/${infoHash}`, { method: 'DELETE' });
-      if (!res.ok) await fetchTorrents();
+      await api.deleteTorrent(infoHash);
     } catch {
       await fetchTorrents();
     }
@@ -238,7 +162,7 @@ export const useSeedrStore = defineStore('seedr', () => {
   async function startSeeding() {
     actionPending.value = true;
     try {
-      await fetch('/api/control/start', { method: 'POST' });
+      await api.postStart();
     } catch {
       actionPending.value = false;
     }
@@ -247,7 +171,7 @@ export const useSeedrStore = defineStore('seedr', () => {
   async function stopSeeding() {
     actionPending.value = true;
     try {
-      await fetch('/api/control/stop', { method: 'POST' });
+      await api.postStop();
     } catch {
       actionPending.value = false;
     }

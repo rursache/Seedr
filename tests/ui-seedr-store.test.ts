@@ -122,12 +122,12 @@ describe('Seedr store', () => {
 
     const store = useSeedrStore();
     fakeSocket.emitLocal('torrent:added', { infoHash: 'hash-1', name: 'Torrent One' });
-    await Promise.resolve();
-    await Promise.resolve();
 
     expect(store.events[0]?.type).toBe('torrent:added');
     expect(fetchMock).toHaveBeenCalledWith('/api/torrents');
-    expect(store.torrents[0]?.name).toBe('Torrent One');
+    // The refresh is fire-and-forget, so wait for it to land rather than
+    // counting the microtasks it happens to take
+    await vi.waitFor(() => expect(store.torrents[0]?.name).toBe('Torrent One'));
   });
 
   it('clears live state on websocket disconnect', () => {
