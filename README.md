@@ -114,6 +114,7 @@ The following UI preferences are saved in the browser (localStorage) and not in 
 |----------|---------|-------------|
 | `PUID` | `1000` | User ID to run as (for volume permissions, optional) |
 | `PGID` | `1000` | Group ID to run as (for volume permissions, optional) |
+| `HOST` | `0.0.0.0` | Bind address for the web UI and API |
 | `WEB_PORT` | `8080` | Web UI and API port |
 | `USERNAME` | *(unset)* | Username for web UI authentication (optional) |
 | `PASSWORD` | *(unset)* | Password for web UI authentication (optional) |
@@ -121,6 +122,12 @@ The following UI preferences are saved in the browser (localStorage) and not in 
 | `CLIENTS_DIR` | `$DATA_DIR/clients` | Directory containing `.client` profile files |
 | `TORRENTS_DIR` | `$DATA_DIR/torrents` | Directory for `.torrent` files (watched for changes) |
 | `LOG_LEVEL` | `info` | Log level (debug, info, warn, error) |
+| `NODE_ENV` | *(unset)* | Set to `production` to disable pretty-printed logs (the Docker image sets this) |
+| `container` | *(unset)* | Set by some container runtimes; forces polling for the torrents directory watcher |
+
+Directory variables (`DATA_DIR`, `CLIENTS_DIR`, `TORRENTS_DIR`) and the auth variables are read once at startup, so changing them requires a restart.
+
+`container` is normally set by the container runtime itself, not by hand. Seedr also detects Docker via `/.dockerenv`; either signal switches the file watcher to polling, which is needed for bind-mounted volumes where inotify events don't propagate.
 
 
 ## Authentication
