@@ -23,6 +23,7 @@ const configSchema = z.object({
 
 const stateSchema = z.object({
   torrents: z.record(
+    z.string(),
     z.object({
       infoHash: z.string(),
       uploaded: z.number(),
@@ -162,11 +163,14 @@ export function validateConfigUpdate(updates: unknown): Partial<AppConfig> {
   if (!result.success) {
     throw new Error(result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join(', '));
   }
-  // Only allow known keys
+  // A partial schema still fills in field defaults, so echo back only the keys
+  // the caller actually sent — otherwise a single-field save would reset every
+  // other setting to its default. Unknown keys are dropped either way.
+  const provided = (updates ?? {}) as Record<string, unknown>;
   const allowed = new Set(Object.keys(configSchema.shape));
   const clean: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(result.data)) {
-    if (allowed.has(key)) clean[key] = value;
+    if (allowed.has(key) && Object.hasOwn(provided, key)) clean[key] = value;
   }
   return clean as Partial<AppConfig>;
 }
