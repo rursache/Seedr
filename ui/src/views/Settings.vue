@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import { ref, watch, computed, onUnmounted } from 'vue';
 import { useSeedrStore } from '../stores/seedr';
+import ToggleSwitch from '../components/ToggleSwitch.vue';
+import {
+  validatePort,
+  validateUploadRates,
+  validateSimultaneousSeed,
+  validateRotationInterval,
+  validateRatioTarget,
+  validatePeerCounts,
+} from '../utils/settings-validation';
 
 const emit = defineEmits<{ close: [] }>();
 
@@ -37,45 +46,23 @@ watch(
   { immediate: true }
 );
 
-const portWarning = computed(() => {
-  const v = form.value.port;
-  if (v === null || v === undefined || v === '' as any) return null; // empty → will use default
-  if (!Number.isInteger(v) || v < 1 || v > 65535) return 'Must be between 1 and 65535';
-  return null;
-});
+const portWarning = computed(() => validatePort(form.value.port));
 
-const speedWarning = computed(() => {
-  const { minUploadRate, maxUploadRate } = form.value;
-  if (minUploadRate < 0 || maxUploadRate < 0) return 'Upload rates must be positive';
-  if (minUploadRate > maxUploadRate) return 'Min upload rate is higher than max';
-  return null;
-});
+const speedWarning = computed(() =>
+  validateUploadRates(form.value.minUploadRate, form.value.maxUploadRate)
+);
 
-const seedWarning = computed(() => {
-  const v = form.value.simultaneousSeed;
-  if (v !== -1 && (!Number.isInteger(v) || v < 1)) return 'Must be -1 (all) or at least 1';
-  return null;
-});
+const seedWarning = computed(() => validateSimultaneousSeed(form.value.simultaneousSeed));
 
-const rotationWarning = computed(() => {
-  if (form.value.simultaneousSeed === -1) return null;
-  const v = form.value.seedRotationInterval;
-  if (!Number.isInteger(v) || v < 1 || v > 999999) return 'Must be between 1 and 999999 minutes';
-  return null;
-});
+const rotationWarning = computed(() =>
+  validateRotationInterval(form.value.seedRotationInterval, form.value.simultaneousSeed)
+);
 
-const ratioWarning = computed(() => {
-  const v = form.value.uploadRatioTarget;
-  if (v !== -1 && v <= 0) return 'Must be -1 (unlimited) or a positive number';
-  return null;
-});
+const ratioWarning = computed(() => validateRatioTarget(form.value.uploadRatioTarget));
 
-const peerWarning = computed(() => {
-  const { minLeechers, minSeeders } = form.value;
-  if (minLeechers < 0 || !Number.isInteger(minLeechers)) return 'Min leechers must be 0 or more';
-  if (minSeeders < 0 || !Number.isInteger(minSeeders)) return 'Min seeders must be 0 or more';
-  return null;
-});
+const peerWarning = computed(() =>
+  validatePeerCounts(form.value.minLeechers, form.value.minSeeders)
+);
 
 const hasWarnings = computed(() =>
   !!(portWarning.value || speedWarning.value || seedWarning.value || rotationWarning.value || ratioWarning.value || peerWarning.value)
@@ -115,22 +102,7 @@ defineExpose({ save, saving, saveMessage, formReady, portWarning, speedWarning, 
       <div class="space-y-3">
         <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Interface</h3>
 
-        <label class="flex items-center justify-between cursor-pointer group py-1">
-          <span class="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">Show filename instead of torrent title</span>
-          <button
-            type="button"
-            role="switch"
-            :aria-checked="form.showFileName"
-            @click="form.showFileName = !form.showFileName"
-            class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none"
-            :class="form.showFileName ? 'bg-emerald-600' : 'bg-gray-700'"
-          >
-            <span
-              class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform duration-200"
-              :class="form.showFileName ? 'translate-x-[18px]' : 'translate-x-[3px]'"
-            />
-          </button>
-        </label>
+        <ToggleSwitch v-model="form.showFileName" label="Show filename instead of torrent title" />
       </div>
 
       <!-- Two-column grid -->
@@ -252,40 +224,8 @@ defineExpose({ save, saving, saveMessage, formReady, portWarning, speedWarning, 
 
       <!-- Toggles (full width) -->
       <div class="border-t border-gray-800 pt-5 space-y-3">
-        <label class="flex items-center justify-between cursor-pointer group py-1">
-          <span class="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">Keep torrents with zero leechers</span>
-          <button
-            type="button"
-            role="switch"
-            :aria-checked="form.keepTorrentWithZeroLeechers"
-            @click="form.keepTorrentWithZeroLeechers = !form.keepTorrentWithZeroLeechers"
-            class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none"
-            :class="form.keepTorrentWithZeroLeechers ? 'bg-emerald-600' : 'bg-gray-700'"
-          >
-            <span
-              class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform duration-200"
-              :class="form.keepTorrentWithZeroLeechers ? 'translate-x-[18px]' : 'translate-x-[3px]'"
-            />
-          </button>
-        </label>
-
-        <label class="flex items-center justify-between cursor-pointer group py-1">
-          <span class="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">Skip upload if no peers</span>
-          <button
-            type="button"
-            role="switch"
-            :aria-checked="form.skipIfNoPeers"
-            @click="form.skipIfNoPeers = !form.skipIfNoPeers"
-            class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none"
-            :class="form.skipIfNoPeers ? 'bg-emerald-600' : 'bg-gray-700'"
-          >
-            <span
-              class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform duration-200"
-              :class="form.skipIfNoPeers ? 'translate-x-[18px]' : 'translate-x-[3px]'"
-            />
-          </button>
-        </label>
-
+        <ToggleSwitch v-model="form.keepTorrentWithZeroLeechers" label="Keep torrents with zero leechers" />
+        <ToggleSwitch v-model="form.skipIfNoPeers" label="Skip upload if no peers" />
       </div>
 
     </div>
