@@ -209,6 +209,20 @@ export interface TorrentListItem {
   addedIndex: number;
 }
 
+/**
+ * Wire form of a torrent for the status payload. The runtime keeps info_hash
+ * and peer_id as raw Buffers because the tracker protocol needs the exact
+ * bytes, but sending them as Buffers puts every broadcast on socket.io's
+ * binary attachment path, so they are hex encoded at the boundary.
+ */
+export interface TorrentStatusView
+  extends Omit<TorrentRuntimeState, 'meta' | 'peerId'> {
+  meta: Omit<TorrentMeta, 'infoHash'> & { infoHash: string };
+  peerId: string;
+  uploadRate: number;
+  reportedUploaded: number;
+}
+
 export interface PortCheckStatus {
   checking: boolean;
   result: { reachable: boolean; nodes: Array<{ location: string; success: boolean; time?: number; error?: string }> } | null;
@@ -223,7 +237,7 @@ export interface SeedrStatus {
   client: string;
   globalUploadRate: number; // target rate in KB/s
   actualUploadRate: number; // real throughput in bytes/s from last tick
-  torrents: TorrentRuntimeState[];
+  torrents: TorrentStatusView[];
   uptime: number;
   portCheck: PortCheckStatus;
 }

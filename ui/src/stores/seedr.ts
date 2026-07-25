@@ -42,7 +42,7 @@ export const useSeedrStore = defineStore('seedr', () => {
     status.value = data;
     if (data.torrents) {
       torrents.value = data.torrents.map((t: any, i: number) => ({
-        infoHash: t.seedState?.infoHash || t.meta?.infoHash?.toString('hex') || '',
+        infoHash: t.seedState?.infoHash || t.meta?.infoHash || '',
         name: t.meta?.name || 'Unknown',
         fileName: (t.meta?.filePath || '').split('/').pop() || '',
         size: t.meta?.totalSize || 0,

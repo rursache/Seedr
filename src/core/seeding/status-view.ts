@@ -18,6 +18,9 @@ export function buildStatus(ctx: SeedContext, extras: StatusExtras): SeedrStatus
     const unreported = ctx.bandwidth.getAccumulated(hexHash);
     return {
       ...t,
+      // Hex encoded so the payload stays plain JSON — see TorrentStatusView
+      meta: { ...t.meta, infoHash: hexHash },
+      peerId: t.peerId.toString('hex'),
       uploadRate: ctx.bandwidth.getActualTorrentRate(hexHash),
       reportedUploaded: t.seedState.uploaded, // What the tracker knows
       seedState: {

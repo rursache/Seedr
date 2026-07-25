@@ -1,8 +1,4 @@
-import type { SeedrStatus, TorrentRuntimeState } from '../config/types.js';
-
-function hexToBuffer(hex: string): Buffer {
-  return Buffer.from(hex, 'hex');
-}
+import type { SeedrStatus, TorrentStatusView } from '../config/types.js';
 
 function randomHex(len: number): string {
   const chars = '0123456789abcdef';
@@ -132,11 +128,11 @@ const MOCK_TORRENTS: MockTorrent[] = [
   },
 ];
 
-function buildTorrentState(mock: MockTorrent, index: number): TorrentRuntimeState & { uploadRate: number; reportedUploaded: number } {
+function buildTorrentState(mock: MockTorrent, index: number): TorrentStatusView {
   const infoHash = randomHex(40);
   return {
     meta: {
-      infoHash: hexToBuffer(infoHash),
+      infoHash,
       name: mock.name,
       totalSize: mock.size,
       files: [{ path: mock.name, length: mock.size }],
@@ -152,7 +148,7 @@ function buildTorrentState(mock: MockTorrent, index: number): TorrentRuntimeStat
       lastAnnounce: Date.now() - (index * 120_000),
       announceCount: mock.announceCount,
     },
-    peerId: Buffer.from(`-qB5140-${randomHex(12)}`),
+    peerId: Buffer.from(`-qB5140-${randomHex(12)}`).toString('hex'),
     key: randomHex(8),
     currentTracker: mock.tracker,
     trackerIndex: 0,

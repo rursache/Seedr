@@ -8,10 +8,6 @@
     "build": "vite build",
     "preview": "vite preview"
   },
-  "comment": "socket.io-parser is pinned because 4.2.6 and 4.2.7 break the browser client: it completes the handshake then disconnects immediately, looping forever. 4.2.5 is the last working release. The package is isomorphic and the backend resolves it too, but only the browser side misbehaves, and 4.2.6 added a binary attachment limit for CVE-2026-33151 that the backend should keep. So the pin is deliberately scoped to the UI rather than applied at the root.",
-  "overrides": {
-    "socket.io-parser": "4.2.5"
-  },
   "dependencies": {
     "@vue/devtools-api": "^8.1.5",
     "pinia": "^4.0.2",
