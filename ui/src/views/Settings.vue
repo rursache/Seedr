@@ -104,7 +104,7 @@ defineExpose({ save, saving, saveMessage, formReady, portWarning, speedWarning, 
       <div class="space-y-3">
         <h3 class="text-xs font-semibold text-content-muted uppercase tracking-wider">Interface</h3>
 
-        <div v-if="THEMES.length > 1">
+        <div>
           <label class="block text-sm font-medium text-content-strong mb-1">Theme</label>
           <select
             v-model="form.theme"
