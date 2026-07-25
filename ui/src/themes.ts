@@ -37,7 +37,7 @@ export const COLOR_STYLES: { id: ColorStyle; label: string }[] = [
   { id: 'dark', label: 'Dark' },
 ];
 
-export const DEFAULT_COLOR_STYLE: ColorStyle = 'dark';
+export const DEFAULT_COLOR_STYLE: ColorStyle = 'auto';
 
 export function resolveColorStyle(id: string | undefined | null): ColorStyle {
   return COLOR_STYLES.some((s) => s.id === id) ? (id as ColorStyle) : DEFAULT_COLOR_STYLE;
