@@ -42,9 +42,12 @@ function toggleCollapse(tracker: string) {
 
 const sortedTorrents = computed(() => {
   const q = search.value.toLowerCase().trim();
-  const list = q
-    ? store.torrents.filter((t) => t.name.toLowerCase().includes(q) || t.fileName.toLowerCase().includes(q))
-    : [...store.torrents];
+  const status = store.statusFilter;
+  const list = store.torrents.filter((t) => {
+    if (status && !store.matchesStatus(t, status)) return false;
+    if (!q) return true;
+    return t.name.toLowerCase().includes(q) || t.fileName.toLowerCase().includes(q);
+  });
   const dir = sortDir.value === 'asc' ? 1 : -1;
   if (sortField.value === 'name') {
     list.sort((a, b) => dir * a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
@@ -104,7 +107,13 @@ function sortIndicator(field: SortField): string {
     </div>
 
     <div v-else-if="sortedTorrents.length === 0" class="px-4 py-8 text-center text-content-muted text-sm">
-      No torrents matching "{{ search }}"
+      <template v-if="search">No torrents matching "{{ search }}"</template>
+      <template v-else>No {{ store.statusFilter }} torrents</template>
+      <button
+        v-if="store.statusFilter"
+        @click="store.toggleStatusFilter(store.statusFilter)"
+        class="ml-2 text-xs text-info-accent hover:underline"
+      >Clear filter</button>
     </div>
 
     <div v-else>

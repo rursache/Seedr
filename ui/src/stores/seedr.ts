@@ -13,6 +13,8 @@ import type {
 
 export type { TorrentInfo, SeedrEvent } from '../types';
 
+export type TorrentStatusFilter = 'seeding' | 'error' | 'waiting' | 'completed' | null;
+
 const MAX_EVENTS = 500; // matches the server's cap
 
 export const useSeedrStore = defineStore('seedr', () => {
@@ -23,6 +25,8 @@ export const useSeedrStore = defineStore('seedr', () => {
   const clients = ref<string[]>([]);
   const events = ref<SeedrEvent[]>([]);
   const actionPending = ref(false);
+  /** Which status the torrent list is narrowed to, or null for everything. */
+  const statusFilter = ref<TorrentStatusFilter>(null);
   const versionInfo = ref<VersionInfo | null>(null);
 
   const { socket, connected } = useWebSocket();
@@ -202,6 +206,18 @@ export const useSeedrStore = defineStore('seedr', () => {
     }
   }
 
+  /** Clicking the active status again clears it, and picking another replaces it. */
+  function toggleStatusFilter(status: Exclude<TorrentStatusFilter, null>) {
+    statusFilter.value = statusFilter.value === status ? null : status;
+  }
+
+  function matchesStatus(t: TorrentInfo, status: Exclude<TorrentStatusFilter, null>): boolean {
+    if (status === 'seeding') return t.seeding && isTorrentEligible(t);
+    if (status === 'waiting') return t.seeding && !isTorrentEligible(t) && !t.completed;
+    if (status === 'error') return t.consecutiveFailures > 0 && !t.seeding;
+    return t.completed;
+  }
+
   function isTorrentEligible(t: TorrentInfo): boolean {
     const cfg = config.value;
     if (!cfg) return true; // Config not loaded yet — assume eligible
@@ -249,6 +265,9 @@ export const useSeedrStore = defineStore('seedr', () => {
     clients,
     events,
     connected,
+    statusFilter,
+    toggleStatusFilter,
+    matchesStatus,
     activeCount,
     seedingCount,
     waitingCount,

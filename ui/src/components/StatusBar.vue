@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useSeedrStore } from '../stores/seedr';
+import { useSeedrStore, type TorrentStatusFilter } from '../stores/seedr';
 import { formatSpeed } from '../utils/format';
 import { computed } from 'vue';
 
@@ -28,13 +28,16 @@ const statusClass = computed(() => {
   }
 });
 
+type Segment = { count: number; label: string; color: string; status: TorrentStatusFilter };
+
 const torrentSegments = computed(() => {
-  const segments: Array<{ count: number; label: string; color: string }> = [];
-  if (store.seedingCount > 0) segments.push({ count: store.seedingCount, label: 'seeding', color: 'text-primary' });
-  if (store.errorCount > 0) segments.push({ count: store.errorCount, label: 'error', color: 'text-danger' });
-  if (store.waitingCount > 0) segments.push({ count: store.waitingCount, label: 'waiting', color: 'text-waiting' });
-  if (store.completedCount > 0) segments.push({ count: store.completedCount, label: 'completed', color: 'text-info' });
-  if (segments.length === 0) segments.push({ count: 0, label: 'seeding', color: 'text-content-faint' });
+  const segments: Segment[] = [];
+  if (store.seedingCount > 0) segments.push({ count: store.seedingCount, label: 'seeding', color: 'text-primary', status: 'seeding' });
+  if (store.errorCount > 0) segments.push({ count: store.errorCount, label: 'error', color: 'text-danger', status: 'error' });
+  if (store.waitingCount > 0) segments.push({ count: store.waitingCount, label: 'waiting', color: 'text-waiting', status: 'waiting' });
+  if (store.completedCount > 0) segments.push({ count: store.completedCount, label: 'completed', color: 'text-info', status: 'completed' });
+  // Nothing to filter by when there is nothing to show
+  if (segments.length === 0) segments.push({ count: 0, label: 'seeding', color: 'text-content-faint', status: null });
   return segments;
 });
 
@@ -65,8 +68,21 @@ const ipDisplay = computed(() => {
       <div class="mt-1 text-base md:text-lg font-semibold text-content flex items-baseline flex-wrap gap-x-1">
         <template v-for="(seg, i) in torrentSegments" :key="seg.label">
           <span v-if="i > 0" class="text-content-ghost">,</span>
-          <span>{{ seg.count }}</span>
-          <span class="text-sm font-normal" :class="seg.color">{{ seg.label }}</span>
+          <component
+            :is="seg.status ? 'button' : 'span'"
+            :class="[
+              'inline-flex items-baseline gap-1 rounded transition-colors',
+              seg.status ? 'cursor-pointer hover:bg-surface-input/60' : '',
+            ]"
+            :title="seg.status ? `Show only ${seg.label} torrents` : undefined"
+            @click="seg.status && store.toggleStatusFilter(seg.status)"
+          >
+            <span>{{ seg.count }}</span>
+            <span
+              class="text-sm"
+              :class="[seg.color, store.statusFilter === seg.status ? 'font-semibold' : 'font-normal']"
+            >{{ seg.label }}</span>
+          </component>
         </template>
         <span class="text-content-ghost">/</span>
         {{ store.torrents.length }}

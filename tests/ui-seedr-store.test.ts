@@ -345,6 +345,58 @@ describe('Seedr store', () => {
     expect(store.events[0]?.id).toBe(505);
   });
 
+  describe('status filtering', () => {
+    function stateWithMixedTorrents() {
+      return {
+        running: true,
+        torrents: [
+          { meta: { name: 'Seeding', filePath: '/a.torrent', totalSize: 10 }, seedState: { infoHash: 'a', uploaded: 1 }, seeders: 5, leechers: 5, active: true, seeding: true, completed: false, lastFailureTransient: false, currentTracker: 't', consecutiveFailures: 0 },
+          { meta: { name: 'Waiting', filePath: '/b.torrent', totalSize: 10 }, seedState: { infoHash: 'b', uploaded: 0 }, seeders: 0, leechers: 0, active: true, seeding: true, completed: false, lastFailureTransient: true, currentTracker: 't', consecutiveFailures: 0 },
+          { meta: { name: 'Errored', filePath: '/c.torrent', totalSize: 10 }, seedState: { infoHash: 'c', uploaded: 0 }, seeders: 1, leechers: 1, active: true, seeding: false, completed: false, lastFailureTransient: false, currentTracker: 't', consecutiveFailures: 3 },
+          { meta: { name: 'Done', filePath: '/d.torrent', totalSize: 10 }, seedState: { infoHash: 'd', uploaded: 0 }, seeders: 1, leechers: 1, active: true, seeding: true, completed: true, lastFailureTransient: false, currentTracker: 't', consecutiveFailures: 0 },
+        ],
+        portCheck: { checking: false, result: null, error: null },
+      };
+    }
+
+    it('starts with no filter', () => {
+      expect(useSeedrStore().statusFilter).toBeNull();
+    });
+
+    it('matches each status against the same rules as the counts', () => {
+      const store = useSeedrStore();
+      store.config = { keepTorrentWithZeroLeechers: true, skipIfNoPeers: true, minLeechers: 1, minSeeders: 1 } as any;
+      fakeSocket.emitLocal('state', stateWithMixedTorrents());
+
+      const named = (n: string) => store.torrents.find((t: any) => t.name === n)!;
+
+      expect(store.matchesStatus(named('Seeding'), 'seeding')).toBe(true);
+      expect(store.matchesStatus(named('Waiting'), 'waiting')).toBe(true);
+      expect(store.matchesStatus(named('Errored'), 'error')).toBe(true);
+      expect(store.matchesStatus(named('Done'), 'completed')).toBe(true);
+
+      // and each excludes the others
+      expect(store.matchesStatus(named('Seeding'), 'error')).toBe(false);
+      expect(store.matchesStatus(named('Errored'), 'seeding')).toBe(false);
+      expect(store.matchesStatus(named('Done'), 'seeding')).toBe(false);
+    });
+
+    it('toggles the same status off and replaces a different one', () => {
+      const store = useSeedrStore();
+
+      store.toggleStatusFilter('seeding');
+      expect(store.statusFilter).toBe('seeding');
+
+      // clicking another status moves the filter rather than appending
+      store.toggleStatusFilter('error');
+      expect(store.statusFilter).toBe('error');
+
+      // clicking the active one clears it
+      store.toggleStatusFilter('error');
+      expect(store.statusFilter).toBeNull();
+    });
+  });
+
   it('resets pending actions when a control request fails', async () => {
     const fetchMock = vi.mocked(global.fetch);
     fetchMock.mockRejectedValueOnce(new Error('network down'));
