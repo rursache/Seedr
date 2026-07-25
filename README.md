@@ -194,7 +194,17 @@ Color Style is separate from the theme: the theme picks the palette, Color Style
 | `GET` | `/api/control/status` | Get engine status |
 | `POST` | `/api/control/port-check` | Check port reachability |
 
+| `GET` | `/api/events` | Recent event log entries (`?limit=` to change the page size) |
+| `DELETE` | `/api/events` | Clear the event log |
+| `DELETE` | `/api/events/:id` | Dismiss a single entry |
+
 Real-time updates are available via Socket.IO on the same port.
+
+## Event Log
+
+The terminal icon in the header opens the event log: announces, torrents appearing and disappearing, and the engine starting and stopping. Entries can be filtered to problems or activity, dismissed individually, or cleared all at once.
+
+History is kept in `data/events.db`, a SQLite database using Node's built-in driver, so it survives restarts without adding a dependency. It is designed for a process that runs for months: rows are appended rather than rewriting a file, only the page being displayed is held in memory, and growth is bounded from three directions — every recorded string is clamped, rows are capped at 5000, and anything older than 30 days is dropped.
 
 ## Tests
 
