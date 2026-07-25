@@ -53,7 +53,7 @@ const ipDisplay = computed(() => {
 </script>
 
 <template>
-  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[3fr_4fr_3fr] gap-3">
     <div class="bg-surface-raised rounded-xl border border-line-subtle p-3 md:p-4">
       <div class="text-xs text-content-muted uppercase tracking-wide">Status</div>
       <div class="mt-1 flex items-baseline gap-2">
