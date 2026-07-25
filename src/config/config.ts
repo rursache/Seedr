@@ -55,19 +55,41 @@ function ensureDataDirs(): void {
   }
 }
 
-function copyClientsOnFirstRun(): void {
+/**
+ * Copies the bundled profiles into the data directory on every start, so a
+ * profile added or corrected in a release reaches existing installs too. It
+ * previously only ran when the directory was empty, which meant upgrades never
+ * saw new profiles.
+ *
+ * A bundled profile always wins over the copy on disk. Profiles the release
+ * does not ship are left alone, so custom ones survive — but an edit to a
+ * bundled profile is overwritten, and customisations belong in a file with its
+ * own name.
+ */
+function syncBundledClients(): void {
   if (!existsSync(PROJECT_CLIENTS_DIR)) return;
 
-  const projectClients = readdirSync(PROJECT_CLIENTS_DIR).filter((f) => f.endsWith('.client'));
-  const existingClients = existsSync(CLIENTS_DIR)
-    ? readdirSync(CLIENTS_DIR).filter((f) => f.endsWith('.client'))
-    : [];
+  const bundled = readdirSync(PROJECT_CLIENTS_DIR).filter((f) => f.endsWith('.client'));
+  const added: string[] = [];
+  const replaced: string[] = [];
 
-  if (existingClients.length === 0 && projectClients.length > 0) {
-    logger.info('First run detected — copying client profiles to data directory');
-    for (const file of projectClients) {
-      copyFileSync(join(PROJECT_CLIENTS_DIR, file), join(CLIENTS_DIR, file));
+  for (const file of bundled) {
+    const source = join(PROJECT_CLIENTS_DIR, file);
+    const target = join(CLIENTS_DIR, file);
+
+    if (!existsSync(target)) {
+      added.push(file);
+    } else if (readFileSync(source).equals(readFileSync(target))) {
+      continue; // unchanged, leave the file and its mtime alone
+    } else {
+      replaced.push(file);
     }
+
+    copyFileSync(source, target);
+  }
+
+  if (added.length > 0 || replaced.length > 0) {
+    logger.info({ added, replaced }, 'Synced bundled client profiles');
   }
 }
 
@@ -104,7 +126,7 @@ function defaultConfig(): AppConfig {
 
 export function loadConfig(): AppConfig {
   ensureDataDirs();
-  copyClientsOnFirstRun();
+  syncBundledClients();
 
   if (!existsSync(CONFIG_PATH)) {
     const cfg = defaultConfig();

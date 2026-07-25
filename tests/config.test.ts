@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mkdirSync, writeFileSync, rmSync, existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 
 // Use a unique temp directory for each test run
@@ -462,6 +462,55 @@ describe('Config', () => {
 
       const clients = listClientFiles();
       expect(clients).toEqual([]);
+    });
+  });
+
+  // loadConfig syncs the profiles shipped in the repo's clients/ directory into
+  // the data directory, which is what makes new profiles reach existing installs
+  describe('bundled client profile sync', () => {
+    const bundled = readdirSync(resolve('clients')).filter((f) => f.endsWith('.client'));
+
+    beforeEach(() => {
+      for (const f of readdirSync(TEST_CLIENTS_DIR)) rmSync(join(TEST_CLIENTS_DIR, f));
+    });
+
+    it('should copy every bundled profile into an empty data directory', () => {
+      loadConfig();
+      expect(listClientFiles()).toEqual([...bundled].sort());
+    });
+
+    it('should add a bundled profile that is missing from an existing install', () => {
+      // simulate an install that predates one of the bundled profiles
+      const [first, ...rest] = bundled;
+      for (const f of rest) {
+        writeFileSync(join(TEST_CLIENTS_DIR, f), readFileSync(join(resolve('clients'), f)));
+      }
+      expect(listClientFiles()).not.toContain(first);
+
+      loadConfig();
+      expect(listClientFiles()).toContain(first);
+    });
+
+    it('should replace a bundled profile whose contents drifted', () => {
+      const target = join(TEST_CLIENTS_DIR, bundled[0]!);
+      writeFileSync(target, '{"stale":true}');
+
+      loadConfig();
+
+      expect(readFileSync(target, 'utf-8')).toBe(
+        readFileSync(join(resolve('clients'), bundled[0]!), 'utf-8')
+      );
+    });
+
+    it('should leave a custom profile untouched', () => {
+      const custom = join(TEST_CLIENTS_DIR, 'my-own-client.client');
+      writeFileSync(custom, '{"custom":true}');
+
+      loadConfig();
+
+      expect(existsSync(custom)).toBe(true);
+      expect(readFileSync(custom, 'utf-8')).toBe('{"custom":true}');
+      expect(listClientFiles()).toContain('my-own-client.client');
     });
   });
 });

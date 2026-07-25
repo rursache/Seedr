@@ -2,6 +2,7 @@
 import { ref, watch, computed, onUnmounted } from 'vue';
 import { useSeedrStore } from '../stores/seedr';
 import ToggleSwitch from '../components/ToggleSwitch.vue';
+import SelectField from '../components/SelectField.vue';
 import { THEMES, DEFAULT_THEME } from '../themes';
 import {
   validatePort,
@@ -62,6 +63,10 @@ const rotationWarning = computed(() =>
 
 const ratioWarning = computed(() => validateRatioTarget(form.value.uploadRatioTarget));
 
+const themeOptions = computed(() => THEMES.map((t) => ({ value: t.id, label: t.label })));
+
+const clientOptions = computed(() => store.clients.map((c) => ({ value: c, label: c })));
+
 const peerWarning = computed(() =>
   validatePeerCounts(form.value.minLeechers, form.value.minSeeders)
 );
@@ -104,17 +109,10 @@ defineExpose({ save, saving, saveMessage, formReady, portWarning, speedWarning, 
       <div class="space-y-3">
         <h3 class="text-xs font-semibold text-content-muted uppercase tracking-wider">Interface</h3>
 
-        <div>
-          <label class="block text-sm font-medium text-content-strong mb-1">Theme</label>
-          <select
-            v-model="form.theme"
-            class="w-full bg-surface-input border border-line rounded-lg px-3 py-2 text-sm text-content focus:outline-none focus:border-primary-strong transition-colors"
-          >
-            <option v-for="t in THEMES" :key="t.id" :value="t.id">{{ t.label }}</option>
-          </select>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-end">
+          <SelectField v-model="form.theme" label="Theme" :options="themeOptions" />
+          <ToggleSwitch v-model="form.showFileName" label="Show filename instead of torrent title" />
         </div>
-
-        <ToggleSwitch v-model="form.showFileName" label="Show filename instead of torrent title" />
       </div>
 
       <!-- Two-column grid -->
@@ -124,15 +122,7 @@ defineExpose({ save, saving, saveMessage, formReady, portWarning, speedWarning, 
         <div class="space-y-4">
           <h3 class="text-xs font-semibold text-content-muted uppercase tracking-wider">Client Emulation</h3>
 
-          <div>
-            <label class="block text-sm font-medium text-content-strong mb-1">Client Profile</label>
-            <select
-              v-model="form.client"
-              class="w-full bg-surface-input border border-line rounded-lg px-3 py-2 text-sm text-content focus:outline-none focus:border-primary-strong transition-colors"
-            >
-              <option v-for="c in store.clients" :key="c" :value="c">{{ c }}</option>
-            </select>
-          </div>
+          <SelectField v-model="form.client" label="Client Profile" :options="clientOptions" />
 
           <div>
             <label class="block text-sm font-medium text-content-strong mb-1">Port</label>

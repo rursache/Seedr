@@ -160,6 +160,8 @@ Seedr ships with several `.client` profile files that define how it emulates a s
 
 Profiles are stored in the `data/clients/` directory and can be selected from the Settings panel. You can also add custom profiles by placing `.client` files in that directory.
 
+On every start, the profiles bundled with the release are copied into `data/clients/`, so profiles added or corrected in an update reach existing installs. A bundled profile overwrites the copy on disk if it differs. Profiles the release does not ship are never touched, so custom ones are safe — but give a custom profile its own filename rather than editing a bundled one, or your changes will be replaced on the next start.
+
 ## Themes
 
 The UI is built on semantic colour tokens rather than hardcoded colours, so a theme is a small block of CSS variable overrides. Seedr currently ships one theme, `midnight`, whose values live in the `@theme` block in `ui/src/style.css` and also act as the base every other theme inherits from.
