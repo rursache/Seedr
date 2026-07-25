@@ -109,9 +109,21 @@ defineExpose({ save, saving, saveMessage, formReady, portWarning, speedWarning, 
       <div class="space-y-3">
         <h3 class="text-xs font-semibold text-content-muted uppercase tracking-wider">Interface</h3>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-end">
+        <!-- Grid items stretch, so both fields end up the same height as the
+             taller one and the toggle centres against the select beside it -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div class="flex flex-col">
+            <label class="block text-sm font-medium text-content-strong mb-1">Display</label>
+            <div class="flex-1 flex items-center">
+              <ToggleSwitch
+                v-model="form.showFileName"
+                label="Show filename instead of torrent title"
+                class="w-full"
+              />
+            </div>
+          </div>
+
           <SelectField v-model="form.theme" label="Theme" :options="themeOptions" />
-          <ToggleSwitch v-model="form.showFileName" label="Show filename instead of torrent title" />
         </div>
       </div>
 
