@@ -100,8 +100,8 @@ All configuration is managed through the web UI Settings panel. Settings are per
 | Keep With Zero Leechers | true | Keep seeding torrents that have no leechers |
 | Skip If No Peers | true | Don't report upload if no peers are connected |
 | Show Filename | true | Show .torrent filename instead of torrent title in the UI |
-| Theme | midnight | UI theme (see [Themes](#themes)) |
-| Color Style | dark | Whether the theme renders light or dark, or follows the OS (auto) |
+| Theme | midnight | UI theme: `midnight`, `ember` or `amethyst` (see [Themes](#themes)) |
+| Color Style | auto | Whether the theme renders light or dark, or follows the OS (auto) |
 
 The following UI preferences are saved in the browser (localStorage) and not in `config.json`:
 
@@ -165,18 +165,37 @@ On every start, the profiles bundled with the release are copied into `data/clie
 
 ## Themes
 
-The UI is built on semantic colour tokens rather than hardcoded colours, so a theme is a small block of CSS variable overrides. Seedr currently ships one theme, `midnight`, whose values live in the `@theme` block in `ui/src/style.css` and also act as the base every other theme inherits from.
+The UI is built on semantic colour tokens rather than hardcoded colours, so a theme is a block of CSS variable overrides. Three ship, each with a full light and dark palette:
+
+| Theme | Feel |
+|-------|------|
+| `midnight` | The default. Cool neutral slate with an emerald primary |
+| `ember` | Warm and earthy. Warm near-black surfaces, parchment text, moss-green primary, terracotta and amber accents |
+| `amethyst` | Violet and moody. Violet-tinted surfaces, lavender text, violet primary, rose and cyan accents |
 
 Tokens are grouped into surfaces (`surface`, `surface-raised`, `surface-input`, `surface-hover`), borders (`line-subtle`, `line`, `line-strong`), text tiers (`content` through `content-ghost`), a modal `scrim`, and five accents: `primary`, `danger`, `warning`, `waiting` and `info`. Each accent has steps for solid fills, coloured text and tinted badge backgrounds.
 
+Each theme is one file, so adding a theme does not grow a shared stylesheet:
+
+```
+ui/src/style.css                    entry, imports only
+ui/src/styles/tokens.css            token vocabulary and the rules a theme follows
+ui/src/styles/themes/midnight.css   the default, and the base the others override
+ui/src/styles/themes/ember.css
+ui/src/styles/themes/amethyst.css
+```
+
 To add one:
 
-1. add a `:root[data-theme="<id>"]` block in `ui/src/style.css`, overriding only the tokens that differ. Anything left out keeps the `midnight` value, so a theme can be a handful of lines
-2. register it in `ui/src/themes.ts`
+1. add `ui/src/styles/themes/<id>.css` with two blocks, one per colour style: `:root[data-theme="<id>"][data-color-style="dark"]` and the same with `light`
+2. import it from `ui/src/style.css`
+3. register it in `ui/src/themes.ts`
+
+Name both attributes in the selector. A bare `:root[data-theme="<id>"]` has the same specificity as the shared light palette, so import order would decide which one wins and a theme's dark values could leak into light mode. `tests/ui-themes.test.ts` fails if a theme is registered without a file, is not imported, is named inconsistently, misses a colour style, or overrides a token that does not exist.
 
 Theme and Color Style are both in the Settings panel and are stored in `config.json`. Changing either applies immediately, before saving, and reverts if the panel is closed without saving. A change saved in one browser reaches any other open browser straight away.
 
-Color Style is separate from the theme: the theme picks the palette, Color Style decides whether it renders light or dark, with `auto` following the operating system and reacting to it live. `midnight` ships both, and its light values double as the base any future theme inherits in light mode, so a new theme is legible in light without extra work. A theme that wants its own light values overrides them under `:root[data-theme="<id>"][data-color-style="light"]`.
+Color Style is separate from the theme: the theme picks the palette, Color Style decides whether it renders light or dark, with `auto` following the operating system and reacting to it live. `midnight`'s light values are also the base a theme inherits for anything it does not override, so a new theme stays legible in light mode even before it is finished.
 
 ## API
 
