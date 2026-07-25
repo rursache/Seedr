@@ -10,6 +10,7 @@ import type { SeedManager } from '../core/seed-manager.js';
 import { registerConfigRoutes } from './routes/config-routes.js';
 import { registerTorrentRoutes } from './routes/torrent-routes.js';
 import { registerControlRoutes } from './routes/control-routes.js';
+import { registerEventRoutes } from './routes/event-routes.js';
 import { setupWebSocket } from './websocket.js';
 import { createLogger } from '../utils/logger.js';
 import { getVersionInfo } from '../utils/version.js';
@@ -104,6 +105,7 @@ export async function startWebServer(seedManager: SeedManager) {
   registerConfigRoutes(server, seedManager);
   registerTorrentRoutes(server, seedManager);
   registerControlRoutes(server, seedManager);
+  registerEventRoutes(server, seedManager);
 
   // Socket.IO
   const io = new Server(server.server, {

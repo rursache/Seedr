@@ -7,13 +7,6 @@ import { createLogger } from '../utils/logger.js';
 const logger = createLogger('websocket');
 
 const BROADCAST_INTERVAL = 1000; // Broadcast full state every second
-const MAX_RECENT_EVENTS = 50;
-
-interface RecentEvent {
-  type: string;
-  data: any;
-  time: number;
-}
 
 export function setupWebSocket(io: Server, seedManager: SeedManager, authConfig?: AuthConfig): void {
   // Authenticate WebSocket connections when auth is enabled
@@ -35,14 +28,6 @@ export function setupWebSocket(io: Server, seedManager: SeedManager, authConfig?
     });
   }
   let broadcastTimer: ReturnType<typeof setInterval> | null = null;
-  const recentEvents: RecentEvent[] = [];
-
-  function pushEvent(type: string, data: any) {
-    recentEvents.push({ type, data, time: Date.now() });
-    if (recentEvents.length > MAX_RECENT_EVENTS) {
-      recentEvents.shift();
-    }
-  }
 
   // Forward internal events to WebSocket clients
   const events = [
@@ -55,12 +40,21 @@ export function setupWebSocket(io: Server, seedManager: SeedManager, authConfig?
     'started',
     'stopped',
   ];
+
+  // config:updated carries the whole config, which is state rather than
+  // something worth a line in the log, so it is forwarded but not recorded.
+  const notLogged = new Set(['config:updated']);
+
   const eventHandlers = new Map<string, (data: any) => void>();
 
   for (const event of events) {
     const handler = (data: any) => {
-      pushEvent(event, data);
       io.emit(event, data);
+      if (!notLogged.has(event)) {
+        // Recorded once here, with the time it happened and a stable id, then
+        // pushed to clients as a log record separate from the domain event
+        io.emit('event:new', seedManager.eventLog.record(event, data ?? {}));
+      }
     };
     eventHandlers.set(event, handler);
     seedManager.on(event, handler);
@@ -83,10 +77,9 @@ export function setupWebSocket(io: Server, seedManager: SeedManager, authConfig?
     // Send initial state
     socket.emit('state', seedManager.getStatus());
 
-    // Send recent events so the client can populate the event log
-    for (const evt of recentEvents) {
-      socket.emit(evt.type, evt.data);
-    }
+    // One snapshot the client replaces its log with, rather than a replay of
+    // individual events that a reconnect would append a second time
+    socket.emit('events:snapshot', seedManager.eventLog.list());
 
     socket.on('disconnect', () => {
       logger.debug({ id: socket.id }, 'Client disconnected');

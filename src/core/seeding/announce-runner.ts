@@ -117,6 +117,7 @@ async function doAnnounce(ctx: SeedContext, infoHash: string, event: AnnounceEve
 
     ctx.emit('announce:success', {
       infoHash,
+      name: torrent.meta.name,
       tracker: result.trackerUrl,
       seeders: result.response.seeders,
       leechers: result.response.leechers,
@@ -135,6 +136,7 @@ async function doAnnounce(ctx: SeedContext, infoHash: string, event: AnnounceEve
 
     ctx.emit('announce:failure', {
       infoHash,
+      name: torrent.meta.name,
       tracker: result.trackerUrl,
       error: result.error,
     });

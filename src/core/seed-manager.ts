@@ -17,6 +17,7 @@ import { loadClientProfile } from './client-emulator/profile-loader.js';
 import { BandwidthDispatcher } from './bandwidth-dispatcher.js';
 import { Scheduler } from './scheduler.js';
 import { ConnectionHandler, type ConnectionContext } from './connection-handler.js';
+import { EventLog } from './event-log.js';
 import { checkPortReachable } from '../utils/port-checker.js';
 import { getDemoStatus, getDemoTorrentList } from '../demo/demo-data.js';
 import { createLogger } from '../utils/logger.js';
@@ -46,6 +47,7 @@ export class SeedManager extends EventEmitter implements SeedContext {
   profile!: ClientProfile;
   bandwidth!: BandwidthDispatcher;
   scheduler = new Scheduler();
+  readonly eventLog = new EventLog();
   connection = new ConnectionHandler();
   torrents = new Map<string, TorrentRuntimeState>();
   emulatorStates = new Map<string, EmulatorState>();
@@ -200,6 +202,7 @@ export class SeedManager extends EventEmitter implements SeedContext {
    */
   async destroy(): Promise<void> {
     if (this.running) await this.stop();
+    this.eventLog.destroy();
     if (this.fileWatcher) {
       await this.fileWatcher.close();
       this.fileWatcher = null;
