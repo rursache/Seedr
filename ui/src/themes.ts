@@ -2,9 +2,10 @@
  * Theme registry.
  *
  * To add a theme:
- *   1. add a `:root[data-theme="<id>"]` block in style.css overriding the
- *      tokens it changes — anything it leaves out keeps the default values
- *   2. add an entry here
+ *   1. add `styles/themes/<id>.css` holding a pair of blocks, one per colour
+ *      style — see the convention documented in styles/tokens.css
+ *   2. import it from style.css
+ *   3. add an entry here
  *
  * Nothing else needs touching. The backend stores whatever id is selected and
  * does not know the list, so an id it has never seen still round-trips.

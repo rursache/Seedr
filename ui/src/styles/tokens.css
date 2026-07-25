@@ -1,0 +1,69 @@
+/*
+ * The token vocabulary.
+ *
+ * Every colour in the UI goes through a semantic token, so a theme is just a
+ * block that overrides the ones it wants to change. Components never name a
+ * palette colour directly.
+ *
+ * No values live here — each theme owns its own palette under styles/themes.
+ * The token names are declared by themes/midnight.css, which holds the @theme
+ * block Tailwind builds the utility classes from.
+ *
+ * Naming:
+ *   surface*  page and panel backgrounds, darkest to lightest
+ *   line*     borders and dividers
+ *   content*  text, strongest to faintest
+ *   scrim     modal backdrop
+ *   accents   primary (activity), danger, warning, waiting, info
+ *
+ * Accent steps:
+ *   <name>            solid fill, e.g. a primary button
+ *   <name>-strong     solid fill one step brighter, hover and focus borders
+ *   <name>-accent     coloured text on a dark surface
+ *   <name>-bright     brighter text, used inside soft badges
+ *   <name>-brightest  brightest text, used inside soft badges
+ *   <name>-soft       tinted badge or toast background
+ *   <name>-soft-line  border that pairs with -soft
+ */
+
+/*
+ * Tells the browser how to render the parts it draws itself: form controls,
+ * scrollbars and the canvas behind the page. A light theme sets this to light.
+ */
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  :root[data-color-style='light'] {
+    color-scheme: light;
+  }
+}
+
+/*
+ * How a theme overrides the above.
+ *
+ * Each theme lives in its own file under styles/themes, named after the id
+ * registered in src/themes.ts and stored in config.json, and is written as two
+ * complete blocks — one per colour style — both qualified by data-theme AND
+ * data-color-style:
+ *
+ *   :root[data-theme="<id>"][data-color-style="dark"]  { ... }
+ *   :root[data-theme="<id>"][data-color-style="light"] { ... }
+ *
+ * Qualifying both is what makes this predictable. A bare :root[data-theme] has
+ * the same specificity (0,2,0) as the light block above, so whichever came last
+ * would win — a theme's dark values would leak into light mode. Naming both
+ * attributes scores 0,3,0 and settles it by specificity rather than by import
+ * order. useTheme() always resolves auto to dark or light before writing the
+ * attribute, so exactly one of the two blocks matches.
+ *
+ * The blocks are also complete rather than partial: every token a theme changes
+ * in dark is restated in light. Inheriting a subset saves lines but means
+ * reading two files to know what a colour actually is, and it is how a dark
+ * surface ends up under light text.
+ *
+ * A theme may leave --color-on-accent and --color-scrim alone: white on a
+ * saturated fill and a black backdrop at 60% work in either colour style. A
+ * theme whose accent fills are pale should override --color-on-accent.
+ */
