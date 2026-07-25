@@ -1,4 +1,4 @@
-import type { AppConfig, SeedrState, TorrentInfo, VersionInfo } from '../types';
+import type { AppConfig, SeedrEvent, SeedrState, TorrentInfo, VersionInfo } from '../types';
 
 /** Every call throws on a non-2xx response; callers decide how to react. */
 async function getJson<T>(url: string): Promise<T> {
@@ -39,6 +39,10 @@ export async function postTorrent(file: File): Promise<{ success?: boolean; erro
 export const postAnnounce = (infoHash: string) =>
   send(`/api/torrents/${infoHash}/announce`, 'POST');
 export const deleteTorrent = (infoHash: string) => send(`/api/torrents/${infoHash}`, 'DELETE');
+export const getEvents = () => getJson<SeedrEvent[]>('/api/events');
+export const deleteEvents = () => send('/api/events', 'DELETE');
+export const deleteEvent = (id: number) => send(`/api/events/${id}`, 'DELETE');
+
 export const postStart = () => send('/api/control/start', 'POST');
 export const postStop = () => send('/api/control/stop', 'POST');
 export const postPortCheck = () => send('/api/control/port-check', 'POST');

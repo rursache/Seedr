@@ -98,7 +98,7 @@ describe('Seedr store', () => {
     expect(store.actionPending).toBe(false);
   });
 
-  it('records torrent-added events and refreshes the torrent list', async () => {
+  it('refreshes the torrent list when a torrent is added', async () => {
     const fetchMock = vi.mocked(global.fetch);
     fetchMock.mockResolvedValueOnce(jsonResponse([
       {
@@ -123,7 +123,6 @@ describe('Seedr store', () => {
     const store = useSeedrStore();
     fakeSocket.emitLocal('torrent:added', { infoHash: 'hash-1', name: 'Torrent One' });
 
-    expect(store.events[0]?.type).toBe('torrent:added');
     expect(fetchMock).toHaveBeenCalledWith('/api/torrents');
     // The refresh is fire-and-forget, so wait for it to land rather than
     // counting the microtasks it happens to take
@@ -306,16 +305,44 @@ describe('Seedr store', () => {
     expect(fetchMock).toHaveBeenNthCalledWith(4, '/api/control/stop', { method: 'POST' });
   });
 
-  it('caps the in-memory event log at 100 entries', () => {
+  // The log is fed by the server rather than accumulated from domain events, so
+  // a reconnect replaces the history instead of appending a second copy of it
+  it('replaces the event log from a snapshot', () => {
     const store = useSeedrStore();
 
-    for (let i = 0; i < 105; i++) {
-      fakeSocket.emitLocal('announce:success', { index: i });
+    fakeSocket.emitLocal('events:snapshot', [
+      { id: 2, type: 'announce:failure', data: { error: 'boom' }, time: 2000 },
+      { id: 1, type: 'started', data: {}, time: 1000 },
+    ]);
+    expect(store.events).toHaveLength(2);
+
+    // a second snapshot, as a reconnect would deliver, must not duplicate
+    fakeSocket.emitLocal('events:snapshot', [
+      { id: 2, type: 'announce:failure', data: { error: 'boom' }, time: 2000 },
+      { id: 1, type: 'started', data: {}, time: 1000 },
+    ]);
+    expect(store.events).toHaveLength(2);
+    expect(store.events.map((e: any) => e.id)).toEqual([2, 1]);
+  });
+
+  it('prepends live event records and keeps the newest first', () => {
+    const store = useSeedrStore();
+
+    fakeSocket.emitLocal('events:snapshot', [{ id: 1, type: 'started', data: {}, time: 1000 }]);
+    fakeSocket.emitLocal('event:new', { id: 2, type: 'announce:success', data: { seeders: 3 }, time: 2000 });
+
+    expect(store.events.map((e: any) => e.id)).toEqual([2, 1]);
+  });
+
+  it('caps the event log at the server cap', () => {
+    const store = useSeedrStore();
+
+    for (let i = 1; i <= 505; i++) {
+      fakeSocket.emitLocal('event:new', { id: i, type: 'announce:success', data: { index: i }, time: i });
     }
 
-    expect(store.events).toHaveLength(100);
-    expect(store.events[0]?.data).toEqual({ index: 104 });
-    expect(store.events.at(-1)?.data).toEqual({ index: 5 });
+    expect(store.events).toHaveLength(500);
+    expect(store.events[0]?.id).toBe(505);
   });
 
   it('resets pending actions when a control request fails', async () => {

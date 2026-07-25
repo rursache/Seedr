@@ -13,7 +13,7 @@ import type {
 
 export type { TorrentInfo, SeedrEvent } from '../types';
 
-let nextEventId = 1;
+const MAX_EVENTS = 500; // matches the server's cap
 
 export const useSeedrStore = defineStore('seedr', () => {
   const config = ref<AppConfig | null>(null);
@@ -27,9 +27,32 @@ export const useSeedrStore = defineStore('seedr', () => {
 
   const { socket, connected } = useWebSocket();
 
-  function addEvent(type: string, data: any) {
-    events.value.unshift({ id: nextEventId++, type, data, time: Date.now() });
-    if (events.value.length > 100) events.value.pop();
+  async function clearEvents() {
+    const previous = events.value;
+    events.value = [];
+    try {
+      await api.deleteEvents();
+    } catch {
+      events.value = previous; // put them back if the server refused
+    }
+  }
+
+  async function dismissEvent(id: number) {
+    const previous = events.value;
+    events.value = events.value.filter((e) => e.id !== id);
+    try {
+      await api.deleteEvent(id);
+    } catch {
+      events.value = previous;
+    }
+  }
+
+  async function fetchEvents() {
+    try {
+      events.value = await api.getEvents();
+    } catch (e) {
+      console.error('Failed to fetch events:', e);
+    }
   }
 
   async function checkPort() {
@@ -63,26 +86,20 @@ export const useSeedrStore = defineStore('seedr', () => {
     actionPending.value = false;
   });
 
-  socket.on('started', () => {
-    addEvent('started', {});
-    actionPending.value = false;
+  // Domain events drive behaviour only. The log is fed separately by
+  // events:snapshot and event:new, so a reconnect cannot duplicate history.
+  socket.on('started', () => { actionPending.value = false; });
+  socket.on('stopped', () => { actionPending.value = false; });
+  socket.on('torrent:added', () => fetchTorrents());
+  socket.on('torrent:removed', () => fetchTorrents());
+
+  socket.on('events:snapshot', (records: SeedrEvent[]) => {
+    events.value = records;
   });
 
-  socket.on('announce:success', (data: any) => addEvent('announce:success', data));
-  socket.on('announce:failure', (data: any) => addEvent('announce:failure', data));
-  socket.on('torrent:added', (data: any) => {
-    addEvent('torrent:added', data);
-    fetchTorrents(); // Refresh torrent list when a new torrent is detected
-  });
-  socket.on('torrent:removed', (data: any) => {
-    addEvent('torrent:removed', data);
-    fetchTorrents(); // Refresh torrent list when a torrent is removed
-  });
-  socket.on('torrent:completed', (data: any) => addEvent('torrent:completed', data));
-
-  socket.on('stopped', () => {
-    addEvent('stopped', {});
-    actionPending.value = false;
+  socket.on('event:new', (record: SeedrEvent) => {
+    events.value.unshift(record);
+    if (events.value.length > MAX_EVENTS) events.value.pop();
   });
 
   // The backend broadcasts this after any config change, so a setting altered in
@@ -242,6 +259,9 @@ export const useSeedrStore = defineStore('seedr', () => {
     actionPending,
     portCheck,
     versionInfo,
+    clearEvents,
+    dismissEvent,
+    fetchEvents,
     fetchConfig,
     updateConfig,
     fetchVersion,

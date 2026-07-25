@@ -36,6 +36,7 @@ onMounted(() => {
   store.fetchStatus();
   store.fetchTorrents();
   store.fetchVersion();
+  store.fetchEvents();
 });
 </script>
 
