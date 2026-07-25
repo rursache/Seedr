@@ -1,0 +1,129 @@
+/*
+ * Amethyst — violet and moody.
+ *
+ * Cool like midnight but rotated well past it, from blue-slate (~262) into
+ * violet (~292), and allowed a little more chroma on the surfaces (0.03–0.038
+ * against midnight's 0.028–0.034) because violet at that level reads as
+ * deliberate rather than as a dirty grey.
+ *
+ * This is the theme where primary changes role colour: violet instead of green.
+ * Danger stays red, which is the semantic that actually has to survive, and the
+ * primary hue is held at ~305 rather than the surfaces' 292 so a soft primary
+ * badge still separates from the violet panel behind it. Info moves to cyan,
+ * far from primary, so completed and seeding never look like the same state.
+ */
+:root[data-theme='amethyst'][data-color-style='dark'] {
+  /* Surfaces */
+  --color-surface: oklch(15% 0.032 292);
+  --color-surface-raised: oklch(22% 0.036 292);
+  --color-surface-input: oklch(29% 0.038 292);
+  --color-surface-hover: oklch(38% 0.04 292);
+
+  /* Borders */
+  --color-line-subtle: oklch(29% 0.038 292);
+  --color-line: oklch(38% 0.04 292);
+  --color-line-strong: oklch(46% 0.042 292);
+
+  /* Text — lavender-tinted rather than neutral */
+  --color-content: oklch(98% 0.01 300);
+  --color-content-body: oklch(95% 0.018 295);
+  --color-content-strong: oklch(89% 0.025 293);
+  --color-content-secondary: oklch(74% 0.03 292);
+  --color-content-muted: oklch(60% 0.032 292);
+  --color-content-faint: oklch(48% 0.035 293);
+  --color-content-ghost: oklch(39% 0.035 294);
+
+  /* Primary — violet, the theme's signature */
+  --color-primary: oklch(55% 0.19 305);
+  --color-primary-strong: oklch(63% 0.2 305);
+  --color-primary-accent: oklch(76% 0.16 306);
+  --color-primary-bright: oklch(84% 0.12 307);
+  --color-primary-brightest: oklch(90% 0.08 308);
+  --color-primary-soft: oklch(35% 0.11 305);
+  --color-primary-soft-line: oklch(42% 0.14 305);
+
+  /* Danger — rose red */
+  --color-danger: oklch(57% 0.21 15);
+  --color-danger-strong: oklch(64% 0.2 14);
+  --color-danger-accent: oklch(72% 0.16 12);
+  --color-danger-bright: oklch(82% 0.1 11);
+  --color-danger-brightest: oklch(89% 0.055 10);
+  --color-danger-soft: oklch(38% 0.12 14);
+  --color-danger-soft-line: oklch(45% 0.15 14);
+
+  /* Warning — peach */
+  --color-warning-accent: oklch(82% 0.14 54);
+  --color-warning-soft: oklch(41% 0.1 45);
+  --color-warning-soft-line: oklch(47% 0.12 48);
+
+  /* Waiting — yellow */
+  --color-waiting: oklch(70% 0.14 92);
+  --color-waiting-accent: oklch(87% 0.16 96);
+  --color-waiting-soft: oklch(42% 0.09 92);
+  --color-waiting-soft-line: oklch(48% 0.11 94);
+
+  /* Info — cyan */
+  --color-info: oklch(58% 0.15 224);
+  --color-info-strong: oklch(66% 0.15 222);
+  --color-info-accent: oklch(78% 0.13 220);
+  --color-info-soft: oklch(38% 0.1 228);
+  --color-info-soft-line: oklch(45% 0.12 226);
+}
+
+:root[data-theme='amethyst'][data-color-style='light'] {
+  /* Surfaces — a whisper of lavender rather than plain white */
+  --color-surface: oklch(99% 0.004 300);
+  --color-surface-raised: oklch(97.5% 0.008 300);
+  --color-surface-input: oklch(95.5% 0.012 300);
+  --color-surface-hover: oklch(91% 0.016 298);
+
+  /* Borders */
+  --color-line-subtle: oklch(92% 0.014 298);
+  --color-line: oklch(86.5% 0.018 297);
+  --color-line-strong: oklch(70% 0.03 297);
+
+  /* Text */
+  --color-content: oklch(22% 0.04 295);
+  --color-content-body: oklch(28% 0.045 295);
+  --color-content-strong: oklch(34% 0.045 294);
+  --color-content-secondary: oklch(48% 0.04 293);
+  --color-content-muted: oklch(58% 0.038 293);
+  --color-content-faint: oklch(70% 0.032 294);
+  --color-content-ghost: oklch(86% 0.02 296);
+
+  /* Primary */
+  --color-primary: oklch(52% 0.22 305);
+  --color-primary-strong: oklch(45% 0.2 305);
+  --color-primary-accent: oklch(45% 0.2 305);
+  --color-primary-bright: oklch(39% 0.17 305);
+  --color-primary-brightest: oklch(33% 0.14 305);
+  --color-primary-soft: oklch(95% 0.04 305);
+  --color-primary-soft-line: oklch(80% 0.13 305);
+
+  /* Danger */
+  --color-danger: oklch(55% 0.21 15);
+  --color-danger-strong: oklch(48% 0.19 14);
+  --color-danger-accent: oklch(48% 0.19 14);
+  --color-danger-bright: oklch(42% 0.16 13);
+  --color-danger-brightest: oklch(36% 0.13 12);
+  --color-danger-soft: oklch(94% 0.03 12);
+  --color-danger-soft-line: oklch(79% 0.12 13);
+
+  /* Warning */
+  --color-warning-accent: oklch(52% 0.13 52);
+  --color-warning-soft: oklch(96% 0.05 70);
+  --color-warning-soft-line: oklch(82% 0.13 58);
+
+  /* Waiting */
+  --color-waiting: oklch(53% 0.12 85);
+  --color-waiting-accent: oklch(53% 0.12 85);
+  --color-waiting-soft: oklch(96.5% 0.065 95);
+  --color-waiting-soft-line: oklch(84% 0.14 90);
+
+  /* Info */
+  --color-info: oklch(50% 0.14 232);
+  --color-info-strong: oklch(44% 0.13 232);
+  --color-info-accent: oklch(44% 0.13 232);
+  --color-info-soft: oklch(94% 0.035 228);
+  --color-info-soft-line: oklch(78% 0.11 228);
+}

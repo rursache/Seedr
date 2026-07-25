@@ -17,6 +17,8 @@ export interface ThemeOption {
 
 export const THEMES: ThemeOption[] = [
   { id: 'midnight', label: 'Midnight' },
+  { id: 'ember', label: 'Ember' },
+  { id: 'amethyst', label: 'Amethyst' },
 ];
 
 export const DEFAULT_THEME = 'midnight';

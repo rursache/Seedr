@@ -1,0 +1,132 @@
+/*
+ * Ember — warm and earthy.
+ *
+ * The counterpoint to midnight's cool slate. Warmth comes from the hue of the
+ * surface ramp and the parchment cast on the text, not from loading chroma into
+ * the backgrounds: the surfaces sit at C 0.012–0.022, the same near-neutral band
+ * midnight uses, just rotated to hue ~75 instead of ~262. This is how Gruvbox
+ * and Everforest read as warm while keeping their backgrounds almost greyscale.
+ *
+ * Primary stays green because it cannot be orange. It marks seeding and confirm
+ * actions, directly opposite danger, and an orange primary would sit ~15° from
+ * the red used for errors. It is a moss green rather than midnight's emerald,
+ * which keeps it warm and clearly separate from the original.
+ */
+:root[data-theme='ember'][data-color-style='dark'] {
+  /* Surfaces */
+  --color-surface: oklch(14.5% 0.012 75);
+  --color-surface-raised: oklch(21.5% 0.015 75);
+  --color-surface-input: oklch(28% 0.017 75);
+  --color-surface-hover: oklch(37% 0.019 75);
+
+  /* Borders */
+  --color-line-subtle: oklch(28% 0.017 75);
+  --color-line: oklch(37% 0.019 75);
+  --color-line-strong: oklch(45% 0.022 75);
+
+  /* Text — parchment rather than plain white */
+  --color-content: oklch(97% 0.015 90);
+  --color-content-body: oklch(93% 0.024 90);
+  --color-content-strong: oklch(87% 0.03 88);
+  --color-content-secondary: oklch(72% 0.028 85);
+  --color-content-muted: oklch(58% 0.026 82);
+  --color-content-faint: oklch(46% 0.022 80);
+  --color-content-ghost: oklch(38% 0.02 78);
+
+  /* Primary — moss green */
+  --color-primary: oklch(58% 0.12 132);
+  /* Held at 64% rather than brighter so white still clears 3:1 on the Start
+     Seeding hover state, which is where primary-strong becomes a fill */
+  --color-primary-strong: oklch(64% 0.14 130);
+  --color-primary-accent: oklch(78% 0.145 128);
+  --color-primary-bright: oklch(85% 0.12 125);
+  --color-primary-brightest: oklch(91% 0.09 123);
+  --color-primary-soft: oklch(35% 0.07 130);
+  --color-primary-soft-line: oklch(42% 0.09 129);
+
+  /* Danger — terracotta red */
+  --color-danger: oklch(56% 0.2 32);
+  --color-danger-strong: oklch(63% 0.21 30);
+  --color-danger-accent: oklch(71% 0.17 28);
+  --color-danger-bright: oklch(81% 0.11 26);
+  --color-danger-brightest: oklch(89% 0.06 25);
+  --color-danger-soft: oklch(38% 0.12 30);
+  --color-danger-soft-line: oklch(44% 0.15 30);
+
+  /* Warning — amber */
+  --color-warning-accent: oklch(80% 0.16 62);
+  --color-warning-soft: oklch(40% 0.1 55);
+  --color-warning-soft-line: oklch(46% 0.12 58);
+
+  /* Waiting — gold, kept 26° off warning so the two badges never read alike */
+  --color-waiting: oklch(70% 0.15 88);
+  --color-waiting-accent: oklch(86% 0.17 92);
+  --color-waiting-soft: oklch(42% 0.09 88);
+  --color-waiting-soft-line: oklch(48% 0.11 90);
+
+  /* Info — the one cool accent, which is what makes it read as a different role */
+  --color-info: oklch(56% 0.11 225);
+  --color-info-strong: oklch(64% 0.115 224);
+  --color-info-accent: oklch(76% 0.1 222);
+  --color-info-soft: oklch(37% 0.075 228);
+  --color-info-soft-line: oklch(44% 0.09 226);
+}
+
+:root[data-theme='ember'][data-color-style='light'] {
+  /* Surfaces — warm paper, ramp running lightest to darkest */
+  --color-surface: oklch(98.6% 0.014 92);
+  --color-surface-raised: oklch(96.8% 0.02 92);
+  --color-surface-input: oklch(94.5% 0.024 92);
+  --color-surface-hover: oklch(90% 0.028 92);
+
+  /* Borders */
+  --color-line-subtle: oklch(91% 0.025 92);
+  --color-line: oklch(85% 0.03 92);
+  --color-line-strong: oklch(68% 0.03 88);
+
+  /* Text */
+  --color-content: oklch(20% 0.02 70);
+  --color-content-body: oklch(26% 0.025 70);
+  --color-content-strong: oklch(32% 0.028 72);
+  --color-content-secondary: oklch(46% 0.03 74);
+  --color-content-muted: oklch(56% 0.03 76);
+  --color-content-faint: oklch(68% 0.028 78);
+  --color-content-ghost: oklch(84% 0.028 85);
+
+  /* Primary — deeper and less saturated, since the same green on paper reads
+     washed out at the lightness that works on a dark surface */
+  --color-primary: oklch(52% 0.11 132);
+  --color-primary-strong: oklch(45% 0.1 133);
+  --color-primary-accent: oklch(45% 0.1 133);
+  --color-primary-bright: oklch(38% 0.085 134);
+  --color-primary-brightest: oklch(32% 0.07 135);
+  --color-primary-soft: oklch(94% 0.055 130);
+  --color-primary-soft-line: oklch(80% 0.12 131);
+
+  /* Danger */
+  --color-danger: oklch(54% 0.2 30);
+  --color-danger-strong: oklch(47% 0.18 30);
+  --color-danger-accent: oklch(47% 0.18 30);
+  --color-danger-bright: oklch(41% 0.15 29);
+  --color-danger-brightest: oklch(35% 0.12 28);
+  --color-danger-soft: oklch(93.5% 0.035 25);
+  --color-danger-soft-line: oklch(78% 0.13 28);
+
+  /* Warning */
+  --color-warning-accent: oklch(50% 0.13 58);
+  --color-warning-soft: oklch(95.5% 0.06 80);
+  --color-warning-soft-line: oklch(80% 0.14 62);
+
+  /* Waiting */
+  --color-waiting: oklch(52% 0.12 82);
+  --color-waiting-accent: oklch(52% 0.12 82);
+  --color-waiting-soft: oklch(96.5% 0.07 92);
+  --color-waiting-soft-line: oklch(83% 0.15 88);
+
+  /* Info */
+  --color-info: oklch(50% 0.13 235);
+  --color-info-strong: oklch(43% 0.12 235);
+  --color-info-accent: oklch(43% 0.12 235);
+  --color-info-soft: oklch(94% 0.03 230);
+  --color-info-soft-line: oklch(78% 0.1 230);
+}

@@ -21,3 +21,5 @@
  * midnight's on specificity rather than on position.
  */
 @import "./styles/themes/midnight.css";
+@import "./styles/themes/ember.css";
+@import "./styles/themes/amethyst.css";
