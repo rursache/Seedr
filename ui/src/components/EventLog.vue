@@ -12,14 +12,14 @@ function formatTime(ts: number): string {
 }
 
 function eventColor(type: string): string {
-  if (type === 'started') return 'text-emerald-400';
-  if (type === 'stopped') return 'text-amber-400';
-  if (type.includes('completed')) return 'text-blue-400';
-  if (type.includes('success')) return 'text-emerald-400';
-  if (type.includes('failure')) return 'text-red-400';
-  if (type.includes('added')) return 'text-blue-400';
-  if (type.includes('removed')) return 'text-blue-400';
-  return 'text-gray-400';
+  if (type === 'started') return 'text-primary-accent';
+  if (type === 'stopped') return 'text-warning-accent';
+  if (type.includes('completed')) return 'text-info-accent';
+  if (type.includes('success')) return 'text-primary-accent';
+  if (type.includes('failure')) return 'text-danger-accent';
+  if (type.includes('added')) return 'text-info-accent';
+  if (type.includes('removed')) return 'text-info-accent';
+  return 'text-content-secondary';
 }
 
 function isWarningOrError(event: SeedrEvent): boolean {
@@ -54,10 +54,10 @@ function eventSummary(event: { type: string; data: any }): string {
 
 <template>
   <div>
-    <div class="px-4 py-2 flex items-center justify-end border-b border-gray-800/50">
+    <div class="px-4 py-2 flex items-center justify-end border-b border-line-subtle/50">
       <select
         v-model="filter"
-        class="bg-gray-800 border border-gray-700 text-gray-400 text-xs rounded-lg px-2 py-1 focus:outline-none focus:border-gray-600"
+        class="bg-surface-input border border-line text-content-secondary text-xs rounded-lg px-2 py-1 focus:outline-none focus:border-line-strong"
       >
         <option value="warnings">Warnings & Errors</option>
         <option value="success">Success</option>
@@ -65,17 +65,17 @@ function eventSummary(event: { type: string; data: any }): string {
       </select>
     </div>
     <div class="max-h-[60vh] overflow-y-auto">
-      <div v-if="filteredEvents.length === 0" class="px-4 py-8 text-center text-gray-600 text-xs">
+      <div v-if="filteredEvents.length === 0" class="px-4 py-8 text-center text-content-faint text-xs">
         No matching events
       </div>
       <div
         v-for="event in filteredEvents"
         :key="event.id"
-        class="px-4 py-2 text-xs font-mono flex items-start gap-3 hover:bg-gray-800/50"
+        class="px-4 py-2 text-xs font-mono flex items-start gap-3 hover:bg-surface-input/50"
       >
-        <span class="text-gray-600 shrink-0 pt-0.5">{{ formatTime(event.time) }}</span>
+        <span class="text-content-faint shrink-0 pt-0.5">{{ formatTime(event.time) }}</span>
         <span :class="eventColor(event.type)" class="shrink-0 pt-0.5">{{ event.type }}</span>
-        <span class="text-gray-500 min-w-0 whitespace-normal break-all leading-5">{{ eventSummary(event) }}</span>
+        <span class="text-content-muted min-w-0 whitespace-normal break-all leading-5">{{ eventSummary(event) }}</span>
       </div>
     </div>
   </div>

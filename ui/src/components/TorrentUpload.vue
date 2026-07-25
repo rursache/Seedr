@@ -75,8 +75,8 @@ function onDrop(e: DragEvent) {
     <button
       @click="openFilePicker"
       :disabled="uploading"
-      class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 disabled:opacity-50 text-gray-300 hover:text-white rounded-lg text-xs font-medium transition-colors"
-      :class="{ 'border-emerald-500 bg-emerald-900/20': dragOver }"
+      class="px-3 py-1.5 bg-surface-input hover:bg-surface-hover border border-line disabled:opacity-50 text-content-strong hover:text-content rounded-lg text-xs font-medium transition-colors"
+      :class="{ 'border-primary-strong bg-primary-soft/20': dragOver }"
     >
       <span class="hidden md:inline">{{ uploading ? 'Uploading...' : 'Add Torrent' }}</span>
       <span class="md:hidden">{{ uploading ? '...' : 'Add' }}</span>
@@ -99,7 +99,7 @@ function onDrop(e: DragEvent) {
       <span
         v-if="message"
         class="absolute top-full right-0 mt-2 whitespace-nowrap text-xs px-2 py-1 rounded shadow-lg"
-        :class="message.error ? 'bg-red-900/90 text-red-300' : 'bg-emerald-900/90 text-emerald-300'"
+        :class="message.error ? 'bg-danger-soft/90 text-danger-bright' : 'bg-primary-soft/90 text-primary-bright'"
       >
         {{ message.text }}
       </span>

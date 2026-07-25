@@ -37,20 +37,20 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-950">
+  <div class="min-h-screen bg-surface">
     <!-- Navigation -->
-    <nav class="bg-gray-900/80 backdrop-blur-sm border-b border-gray-800 sticky top-0 z-40">
+    <nav class="bg-surface-raised/80 backdrop-blur-sm border-b border-line-subtle sticky top-0 z-40">
       <div class="max-w-7xl mx-auto px-4">
         <div class="flex items-center justify-between h-14">
           <!-- Left: Logo + connection status -->
           <div class="flex items-center gap-2 md:gap-4">
             <img src="/favicon.svg" alt="Seedr" class="h-6 w-6" />
-            <span class="text-lg font-bold text-white tracking-tight">Seedr</span>
+            <span class="text-lg font-bold text-content tracking-tight">Seedr</span>
             <span
               class="flex items-center gap-1.5 text-xs"
-              :class="store.connected ? 'text-emerald-400/70' : 'text-red-400/70'"
+              :class="store.connected ? 'text-primary-accent/70' : 'text-danger-accent/70'"
             >
-              <span class="w-1.5 h-1.5 rounded-full" :class="store.connected ? 'bg-emerald-400' : 'bg-red-400'"></span>
+              <span class="w-1.5 h-1.5 rounded-full" :class="store.connected ? 'bg-primary-accent' : 'bg-danger-accent'"></span>
               <span class="hidden sm:inline">{{ store.connected ? 'Connected' : 'Disconnected' }}</span>
             </span>
           </div>
@@ -62,7 +62,7 @@ onMounted(() => {
               v-if="store.isSeeding"
               @click="store.stopSeeding()"
               :disabled="store.actionPending"
-              class="px-2 md:px-3 py-1.5 bg-red-500/50 hover:bg-red-500/70 disabled:opacity-50 text-white rounded-lg text-xs font-medium transition-colors"
+              class="px-2 md:px-3 py-1.5 bg-danger-strong/50 hover:bg-danger-strong/70 disabled:opacity-50 text-content rounded-lg text-xs font-medium transition-colors"
             >
               <span class="hidden md:inline">{{ store.actionPending ? 'Stopping...' : 'Stop Seeding' }}</span>
               <span class="md:hidden">{{ store.actionPending ? '...' : 'Stop' }}</span>
@@ -71,7 +71,7 @@ onMounted(() => {
               v-else
               @click="store.startSeeding()"
               :disabled="store.actionPending || store.torrents.length === 0"
-              class="px-2 md:px-3 py-1.5 bg-emerald-600/90 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-xs font-medium transition-colors"
+              class="px-2 md:px-3 py-1.5 bg-primary/90 hover:bg-primary-strong disabled:opacity-50 text-content rounded-lg text-xs font-medium transition-colors"
             >
               <span class="hidden md:inline">{{ store.actionPending ? 'Starting...' : 'Start Seeding' }}</span>
               <span class="md:hidden">{{ store.actionPending ? '...' : 'Start' }}</span>
@@ -81,12 +81,12 @@ onMounted(() => {
             <TorrentUpload />
 
             <!-- Divider -->
-            <div class="w-px h-5 bg-gray-700/50"></div>
+            <div class="w-px h-5 bg-surface-hover/50"></div>
 
             <!-- Event Log -->
             <button
               @click="openEventLog()"
-              class="relative w-[30px] h-[30px] flex items-center justify-center bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-400 hover:text-white rounded-lg transition-colors"
+              class="relative w-[30px] h-[30px] flex items-center justify-center bg-surface-input hover:bg-surface-hover border border-line text-content-secondary hover:text-content rounded-lg transition-colors"
               title="Event Log"
             >
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -100,20 +100,20 @@ onMounted(() => {
               </svg>
               <span
                 v-if="hasErrors"
-                class="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full"
+                class="absolute -top-0.5 -right-0.5 w-2 h-2 bg-danger-strong rounded-full"
               ></span>
             </button>
 
             <!-- Settings -->
             <button
               @click="showSettings = true"
-              class="hidden md:block px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 hover:text-white rounded-lg text-xs font-medium transition-colors"
+              class="hidden md:block px-3 py-1.5 bg-surface-input hover:bg-surface-hover border border-line text-content-strong hover:text-content rounded-lg text-xs font-medium transition-colors"
             >
               Settings
             </button>
             <button
               @click="showSettings = true"
-              class="md:hidden w-[30px] h-[30px] flex items-center justify-center bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-400 hover:text-white rounded-lg transition-colors"
+              class="md:hidden w-[30px] h-[30px] flex items-center justify-center bg-surface-input hover:bg-surface-hover border border-line text-content-secondary hover:text-content rounded-lg transition-colors"
               title="Settings"
             >
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -132,7 +132,7 @@ onMounted(() => {
 
     <!-- Version footer -->
     <footer v-if="store.versionInfo" class="max-w-7xl mx-auto px-4 pb-4 text-center">
-      <span class="text-xs text-gray-700">{{ store.versionInfo.version }}<template v-if="!store.versionInfo.isTagged"> &middot; {{ store.versionInfo.buildDate }}</template></span>
+      <span class="text-xs text-content-ghost">{{ store.versionInfo.version }}<template v-if="!store.versionInfo.isTagged"> &middot; {{ store.versionInfo.buildDate }}</template></span>
     </footer>
 
     <DropZone />
@@ -154,7 +154,7 @@ onMounted(() => {
           <span
             v-if="settingsSaveMessage"
             class="text-sm"
-            :class="settingsSaveMessage.error ? 'text-red-400' : 'text-emerald-400'"
+            :class="settingsSaveMessage.error ? 'text-danger-accent' : 'text-primary-accent'"
           >
             {{ settingsSaveMessage.text }}
           </span>
@@ -164,7 +164,7 @@ onMounted(() => {
         <button
           @click="saveSettings"
           :disabled="settingsSaving || !settingsFormReady"
-          class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed border border-emerald-600 text-white rounded-lg text-xs font-medium transition-colors"
+          class="px-4 py-1.5 bg-primary hover:bg-primary-strong disabled:opacity-50 disabled:cursor-not-allowed border border-primary text-content rounded-lg text-xs font-medium transition-colors"
         >
           {{ settingsSaving ? 'Saving...' : 'Save' }}
         </button>
@@ -180,7 +180,7 @@ onMounted(() => {
       @close="showEventLog = false"
     >
       <template #title-extra>
-        <span class="text-xs text-gray-600">({{ store.events.length }})</span>
+        <span class="text-xs text-content-faint">({{ store.events.length }})</span>
       </template>
       <EventLog />
     </ModalDialog>

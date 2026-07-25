@@ -73,37 +73,37 @@ function sortIndicator(field: SortField): string {
 </script>
 
 <template>
-  <div class="bg-gray-900 rounded-xl border border-gray-800">
-    <div class="px-4 py-3 border-b border-gray-800 flex items-center justify-between gap-3">
-      <h2 class="text-sm font-semibold text-gray-300 shrink-0">Torrents</h2>
+  <div class="bg-surface-raised rounded-xl border border-line-subtle">
+    <div class="px-4 py-3 border-b border-line-subtle flex items-center justify-between gap-3">
+      <h2 class="text-sm font-semibold text-content-strong shrink-0">Torrents</h2>
       <div class="flex items-center gap-2">
         <input
           v-if="store.torrents.length >= 5"
           v-model="search"
           type="text"
           placeholder="Search..."
-          class="bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-gray-600 w-24 sm:w-36"
+          class="bg-surface-input border border-line rounded-lg px-2.5 py-1 text-xs text-content placeholder-content-faint focus:outline-none focus:border-line-strong w-24 sm:w-36"
         />
-        <div v-if="store.torrents.length > 1" class="flex items-center gap-1 text-xs text-gray-500">
+        <div v-if="store.torrents.length > 1" class="flex items-center gap-1 text-xs text-content-muted">
           <button
             @click="toggleSort('name')"
             class="px-1.5 py-0.5 rounded transition-colors"
-            :class="sortField === 'name' ? 'text-gray-300 bg-gray-800' : 'hover:text-gray-400'"
+            :class="sortField === 'name' ? 'text-content-strong bg-surface-input' : 'hover:text-content-secondary'"
           >Name{{ sortIndicator('name') }}</button>
           <button
             @click="toggleSort('added')"
             class="px-1.5 py-0.5 rounded transition-colors"
-            :class="sortField === 'added' ? 'text-gray-300 bg-gray-800' : 'hover:text-gray-400'"
+            :class="sortField === 'added' ? 'text-content-strong bg-surface-input' : 'hover:text-content-secondary'"
           >Added{{ sortIndicator('added') }}</button>
         </div>
       </div>
     </div>
 
-    <div v-if="store.torrents.length === 0" class="px-4 py-8 text-center text-gray-500 text-sm">
+    <div v-if="store.torrents.length === 0" class="px-4 py-8 text-center text-content-muted text-sm">
       No torrents loaded. Drop .torrent files anywhere or use Add Torrent.
     </div>
 
-    <div v-else-if="sortedTorrents.length === 0" class="px-4 py-8 text-center text-gray-500 text-sm">
+    <div v-else-if="sortedTorrents.length === 0" class="px-4 py-8 text-center text-content-muted text-sm">
       No torrents matching "{{ search }}"
     </div>
 
@@ -111,16 +111,16 @@ function sortIndicator(field: SortField): string {
       <div v-for="(group, gi) in groupedTorrents" :key="group.host">
         <!-- Group header -->
         <div
-          class="px-4 py-2 bg-gray-800/40 flex items-center justify-between cursor-pointer select-none hover:bg-gray-800/60 transition-colors"
-          :class="gi > 0 ? 'border-t border-gray-800' : ''"
+          class="px-4 py-2 bg-surface-input/40 flex items-center justify-between cursor-pointer select-none hover:bg-surface-input/60 transition-colors"
+          :class="gi > 0 ? 'border-t border-line-subtle' : ''"
           @click="toggleCollapse(group.host)"
         >
-          <div class="flex items-center gap-2 text-xs text-gray-400">
-            <span class="text-gray-600 text-xs transition-transform duration-200" :class="collapsedGroups.has(group.host) ? '' : 'rotate-90'">&#9654;</span>
-            <span class="font-medium text-gray-300">{{ group.name }}</span>
-            <span class="text-gray-600">{{ group.host }}</span>
+          <div class="flex items-center gap-2 text-xs text-content-secondary">
+            <span class="text-content-faint text-xs transition-transform duration-200" :class="collapsedGroups.has(group.host) ? '' : 'rotate-90'">&#9654;</span>
+            <span class="font-medium text-content-strong">{{ group.name }}</span>
+            <span class="text-content-faint">{{ group.host }}</span>
           </div>
-          <span class="text-xs text-gray-600">{{ group.torrents.length }}</span>
+          <span class="text-xs text-content-faint">{{ group.torrents.length }}</span>
         </div>
 
         <!-- Animated torrent cards -->

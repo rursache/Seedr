@@ -81,7 +81,7 @@ onUnmounted(() => {
     <div
       v-if="dropMessage"
       class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg shadow-lg text-sm font-medium"
-      :class="dropMessage.error ? 'bg-red-900/90 text-red-200' : 'bg-emerald-900/90 text-emerald-200'"
+      :class="dropMessage.error ? 'bg-danger-soft/90 text-danger-brightest' : 'bg-primary-soft/90 text-primary-brightest'"
     >
       {{ dropMessage.text }}
     </div>
@@ -97,14 +97,14 @@ onUnmounted(() => {
     >
       <div
         v-if="dragging"
-        class="fixed inset-0 z-[60] flex items-center justify-center bg-gray-950/80 backdrop-blur-sm"
+        class="fixed inset-0 z-[60] flex items-center justify-center bg-surface/80 backdrop-blur-sm"
         @dragover.prevent
         @dragleave="onDragLeave"
         @drop.prevent="onDrop"
       >
-        <div class="border-2 border-dashed border-emerald-500/50 rounded-2xl px-16 py-12 text-center pointer-events-none">
-          <div class="text-emerald-400 text-lg font-semibold">Drop .torrent files</div>
-          <div class="text-gray-500 text-sm mt-1">Files will be uploaded automatically</div>
+        <div class="border-2 border-dashed border-primary-strong/50 rounded-2xl px-16 py-12 text-center pointer-events-none">
+          <div class="text-primary-accent text-lg font-semibold">Drop .torrent files</div>
+          <div class="text-content-muted text-sm mt-1">Files will be uploaded automatically</div>
         </div>
       </div>
     </Transition>

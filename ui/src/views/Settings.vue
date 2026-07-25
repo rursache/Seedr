@@ -92,7 +92,7 @@ defineExpose({ save, saving, saveMessage, formReady, portWarning, speedWarning, 
 
 <template>
   <div>
-    <div v-if="!store.configLoaded" class="text-gray-500 text-sm py-8 text-center">
+    <div v-if="!store.configLoaded" class="text-content-muted text-sm py-8 text-center">
       Loading configuration...
     </div>
 
@@ -100,130 +100,130 @@ defineExpose({ save, saving, saveMessage, formReady, portWarning, speedWarning, 
 
       <!-- UI section -->
       <div class="space-y-3">
-        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Interface</h3>
+        <h3 class="text-xs font-semibold text-content-muted uppercase tracking-wider">Interface</h3>
 
         <ToggleSwitch v-model="form.showFileName" label="Show filename instead of torrent title" />
       </div>
 
       <!-- Two-column grid -->
-      <div class="border-t border-gray-800 pt-5 grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div class="border-t border-line-subtle pt-5 grid grid-cols-1 md:grid-cols-2 gap-8">
 
         <!-- Left column: Client Emulation -->
         <div class="space-y-4">
-          <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Client Emulation</h3>
+          <h3 class="text-xs font-semibold text-content-muted uppercase tracking-wider">Client Emulation</h3>
 
           <div>
-            <label class="block text-sm font-medium text-gray-300 mb-1">Client Profile</label>
+            <label class="block text-sm font-medium text-content-strong mb-1">Client Profile</label>
             <select
               v-model="form.client"
-              class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
+              class="w-full bg-surface-input border border-line rounded-lg px-3 py-2 text-sm text-content focus:outline-none focus:border-primary-strong transition-colors"
             >
               <option v-for="c in store.clients" :key="c" :value="c">{{ c }}</option>
             </select>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-300 mb-1">Port</label>
+            <label class="block text-sm font-medium text-content-strong mb-1">Port</label>
             <input
               v-model.number="form.port"
               type="number"
               min="1"
               max="65535"
               placeholder="49152"
-              class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
+              class="w-full bg-surface-input border border-line rounded-lg px-3 py-2 text-sm text-content focus:outline-none focus:border-primary-strong transition-colors"
             />
           </div>
-          <p v-if="portWarning" class="text-xs text-amber-400 -mt-2">{{ portWarning }}</p>
+          <p v-if="portWarning" class="text-xs text-warning-accent -mt-2">{{ portWarning }}</p>
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-sm font-medium text-gray-300 mb-1">Min Upload <span class="text-gray-600 font-normal ml-1.5">(KB/s)</span></label>
+              <label class="block text-sm font-medium text-content-strong mb-1">Min Upload <span class="text-content-faint font-normal ml-1.5">(KB/s)</span></label>
               <input
                 v-model.number="form.minUploadRate"
                 type="number"
                 min="0"
-                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                class="w-full bg-surface-input border border-line rounded-lg px-3 py-2 text-sm text-content focus:outline-none focus:border-primary-strong transition-colors"
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-300 mb-1">Max Upload <span class="text-gray-600 font-normal ml-1.5">(KB/s)</span></label>
+              <label class="block text-sm font-medium text-content-strong mb-1">Max Upload <span class="text-content-faint font-normal ml-1.5">(KB/s)</span></label>
               <input
                 v-model.number="form.maxUploadRate"
                 type="number"
                 min="0"
-                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                class="w-full bg-surface-input border border-line rounded-lg px-3 py-2 text-sm text-content focus:outline-none focus:border-primary-strong transition-colors"
               />
             </div>
           </div>
-          <p v-if="speedWarning" class="text-xs text-amber-400 -mt-2">{{ speedWarning }}</p>
+          <p v-if="speedWarning" class="text-xs text-warning-accent -mt-2">{{ speedWarning }}</p>
         </div>
 
         <!-- Right column: Seeding Rules -->
         <div class="space-y-4">
-          <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Seeding Rules</h3>
+          <h3 class="text-xs font-semibold text-content-muted uppercase tracking-wider">Seeding Rules</h3>
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-sm font-medium text-gray-300 mb-1">Max Active Torrents <span class="text-gray-600 font-normal ml-1.5">(-1 = all)</span></label>
+              <label class="block text-sm font-medium text-content-strong mb-1">Max Active Torrents <span class="text-content-faint font-normal ml-1.5">(-1 = all)</span></label>
               <input
                 v-model.number="form.simultaneousSeed"
                 type="number"
                 min="-1"
-                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                class="w-full bg-surface-input border border-line rounded-lg px-3 py-2 text-sm text-content focus:outline-none focus:border-primary-strong transition-colors"
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-300 mb-1">Rotation Interval <span class="text-gray-600 font-normal ml-1.5">(minutes)</span></label>
+              <label class="block text-sm font-medium text-content-strong mb-1">Rotation Interval <span class="text-content-faint font-normal ml-1.5">(minutes)</span></label>
               <input
                 v-model.number="form.seedRotationInterval"
                 type="number"
                 min="1"
                 max="999999"
                 :disabled="form.simultaneousSeed === -1"
-                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                class="w-full bg-surface-input border border-line rounded-lg px-3 py-2 text-sm text-content focus:outline-none focus:border-primary-strong transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               />
             </div>
           </div>
-          <p v-if="seedWarning" class="text-xs text-amber-400 -mt-2">{{ seedWarning }}</p>
-          <p v-if="rotationWarning" class="text-xs text-amber-400 -mt-2">{{ rotationWarning }}</p>
+          <p v-if="seedWarning" class="text-xs text-warning-accent -mt-2">{{ seedWarning }}</p>
+          <p v-if="rotationWarning" class="text-xs text-warning-accent -mt-2">{{ rotationWarning }}</p>
 
           <div>
-            <label class="block text-sm font-medium text-gray-300 mb-1">Ratio Target <span class="text-gray-600 font-normal ml-1.5">(-1 = unlimited)</span></label>
+            <label class="block text-sm font-medium text-content-strong mb-1">Ratio Target <span class="text-content-faint font-normal ml-1.5">(-1 = unlimited)</span></label>
             <input
               v-model.number="form.uploadRatioTarget"
               type="number"
               step="0.1"
-              class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
+              class="w-full bg-surface-input border border-line rounded-lg px-3 py-2 text-sm text-content focus:outline-none focus:border-primary-strong transition-colors"
             />
           </div>
-          <p v-if="ratioWarning" class="text-xs text-amber-400 -mt-2">{{ ratioWarning }}</p>
+          <p v-if="ratioWarning" class="text-xs text-warning-accent -mt-2">{{ ratioWarning }}</p>
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-sm font-medium text-gray-300 mb-1">Min Leechers</label>
+              <label class="block text-sm font-medium text-content-strong mb-1">Min Leechers</label>
               <input
                 v-model.number="form.minLeechers"
                 type="number"
                 min="0"
-                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                class="w-full bg-surface-input border border-line rounded-lg px-3 py-2 text-sm text-content focus:outline-none focus:border-primary-strong transition-colors"
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-300 mb-1">Min Seeders</label>
+              <label class="block text-sm font-medium text-content-strong mb-1">Min Seeders</label>
               <input
                 v-model.number="form.minSeeders"
                 type="number"
                 min="0"
-                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                class="w-full bg-surface-input border border-line rounded-lg px-3 py-2 text-sm text-content focus:outline-none focus:border-primary-strong transition-colors"
               />
             </div>
           </div>
-          <p v-if="peerWarning" class="text-xs text-amber-400 -mt-2">{{ peerWarning }}</p>
+          <p v-if="peerWarning" class="text-xs text-warning-accent -mt-2">{{ peerWarning }}</p>
         </div>
       </div>
 
       <!-- Toggles (full width) -->
-      <div class="border-t border-gray-800 pt-5 space-y-3">
+      <div class="border-t border-line-subtle pt-5 space-y-3">
         <ToggleSwitch v-model="form.keepTorrentWithZeroLeechers" label="Keep torrents with zero leechers" />
         <ToggleSwitch v-model="form.skipIfNoPeers" label="Skip upload if no peers" />
       </div>

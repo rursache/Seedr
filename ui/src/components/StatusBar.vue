@@ -22,19 +22,19 @@ const statusLabel = computed(() => {
 
 const statusClass = computed(() => {
   switch (engineState.value) {
-    case 'seeding': return 'text-emerald-400';
-    case 'announcing': return 'text-amber-400';
-    default: return 'text-gray-500';
+    case 'seeding': return 'text-primary-accent';
+    case 'announcing': return 'text-warning-accent';
+    default: return 'text-content-muted';
   }
 });
 
 const torrentSegments = computed(() => {
   const segments: Array<{ count: number; label: string; color: string }> = [];
-  if (store.seedingCount > 0) segments.push({ count: store.seedingCount, label: 'seeding', color: 'text-emerald-600' });
-  if (store.errorCount > 0) segments.push({ count: store.errorCount, label: 'error', color: 'text-red-600' });
-  if (store.waitingCount > 0) segments.push({ count: store.waitingCount, label: 'waiting', color: 'text-yellow-600' });
-  if (store.completedCount > 0) segments.push({ count: store.completedCount, label: 'completed', color: 'text-blue-600' });
-  if (segments.length === 0) segments.push({ count: 0, label: 'seeding', color: 'text-gray-600' });
+  if (store.seedingCount > 0) segments.push({ count: store.seedingCount, label: 'seeding', color: 'text-primary' });
+  if (store.errorCount > 0) segments.push({ count: store.errorCount, label: 'error', color: 'text-danger' });
+  if (store.waitingCount > 0) segments.push({ count: store.waitingCount, label: 'waiting', color: 'text-waiting' });
+  if (store.completedCount > 0) segments.push({ count: store.completedCount, label: 'completed', color: 'text-info' });
+  if (segments.length === 0) segments.push({ count: 0, label: 'seeding', color: 'text-content-faint' });
   return segments;
 });
 
@@ -51,43 +51,43 @@ const ipDisplay = computed(() => {
 
 <template>
   <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-    <div class="bg-gray-900 rounded-xl border border-gray-800 p-3 md:p-4">
-      <div class="text-xs text-gray-500 uppercase tracking-wide">Status</div>
+    <div class="bg-surface-raised rounded-xl border border-line-subtle p-3 md:p-4">
+      <div class="text-xs text-content-muted uppercase tracking-wide">Status</div>
       <div class="mt-1 flex items-baseline gap-2">
         <span class="text-base md:text-lg font-semibold" :class="statusClass">{{ statusLabel }}</span>
-        <span class="text-gray-700">&middot;</span>
-        <span class="text-base md:text-lg font-semibold text-blue-400">{{ speedDisplay }}</span>
+        <span class="text-content-ghost">&middot;</span>
+        <span class="text-base md:text-lg font-semibold text-info-accent">{{ speedDisplay }}</span>
       </div>
     </div>
 
-    <div class="bg-gray-900 rounded-xl border border-gray-800 p-3 md:p-4">
-      <div class="text-xs text-gray-500 uppercase tracking-wide">Torrents</div>
-      <div class="mt-1 text-base md:text-lg font-semibold text-white flex items-baseline flex-wrap gap-x-1">
+    <div class="bg-surface-raised rounded-xl border border-line-subtle p-3 md:p-4">
+      <div class="text-xs text-content-muted uppercase tracking-wide">Torrents</div>
+      <div class="mt-1 text-base md:text-lg font-semibold text-content flex items-baseline flex-wrap gap-x-1">
         <template v-for="(seg, i) in torrentSegments" :key="seg.label">
-          <span v-if="i > 0" class="text-gray-700">,</span>
+          <span v-if="i > 0" class="text-content-ghost">,</span>
           <span>{{ seg.count }}</span>
           <span class="text-sm font-normal" :class="seg.color">{{ seg.label }}</span>
         </template>
-        <span class="text-gray-700">/</span>
+        <span class="text-content-ghost">/</span>
         {{ store.torrents.length }}
-        <span class="text-gray-600 text-sm font-normal">loaded</span>
+        <span class="text-content-faint text-sm font-normal">loaded</span>
       </div>
     </div>
 
-    <div class="sm:col-span-2 md:col-span-1 bg-gray-900 rounded-xl border border-gray-800 p-3 md:p-4">
+    <div class="sm:col-span-2 md:col-span-1 bg-surface-raised rounded-xl border border-line-subtle p-3 md:p-4">
       <div class="flex items-center justify-between gap-2">
-        <div class="text-xs text-gray-500 uppercase tracking-wide">External IP</div>
-        <div class="text-xs text-gray-500 flex items-center gap-2">
+        <div class="text-xs text-content-muted uppercase tracking-wide">External IP</div>
+        <div class="text-xs text-content-muted flex items-center gap-2">
           <template v-if="store.status?.running">
-            <span v-if="store.portCheck.checking" class="text-gray-400">Port: Checking...</span>
+            <span v-if="store.portCheck.checking" class="text-content-secondary">Port: Checking...</span>
             <template v-else-if="store.portCheck.result">
               <span>Port:</span>
-              <span :class="store.portCheck.result.reachable ? 'text-emerald-400' : 'text-red-400'">
+              <span :class="store.portCheck.result.reachable ? 'text-primary-accent' : 'text-danger-accent'">
                 {{ store.portCheck.result.reachable ? 'Open' : 'Closed' }}
               </span>
               <button
                 @click="store.checkPort()"
-                class="text-gray-500 hover:text-gray-300 transition-colors"
+                class="text-content-muted hover:text-content-strong transition-colors"
                 title="Re-check port"
               >
                 &#x21bb;
@@ -95,10 +95,10 @@ const ipDisplay = computed(() => {
             </template>
             <template v-else-if="store.portCheck.error">
               <span>Port:</span>
-              <span class="text-red-400">{{ store.portCheck.error }}</span>
+              <span class="text-danger-accent">{{ store.portCheck.error }}</span>
               <button
                 @click="store.checkPort()"
-                class="text-gray-500 hover:text-gray-300 transition-colors"
+                class="text-content-muted hover:text-content-strong transition-colors"
                 title="Retry port check"
               >
                 &#x21bb;
@@ -108,7 +108,7 @@ const ipDisplay = computed(() => {
               <span>Port:</span>
               <button
                 @click="store.checkPort()"
-                class="text-gray-500 hover:text-gray-300 transition-colors"
+                class="text-content-muted hover:text-content-strong transition-colors"
                 title="Check port"
               >
                 &#x21bb;
@@ -121,9 +121,9 @@ const ipDisplay = computed(() => {
         </div>
       </div>
       <div class="mt-1 flex items-baseline justify-between">
-        <div class="text-base md:text-lg font-semibold text-gray-300 truncate">{{ ipDisplay }}</div>
-        <div v-if="store.status?.running" class="text-base md:text-lg font-semibold text-gray-300 shrink-0">{{ store.status.port }}</div>
-        <div v-else class="text-base md:text-lg font-semibold text-gray-500 shrink-0">—</div>
+        <div class="text-base md:text-lg font-semibold text-content-strong truncate">{{ ipDisplay }}</div>
+        <div v-if="store.status?.running" class="text-base md:text-lg font-semibold text-content-strong shrink-0">{{ store.status.port }}</div>
+        <div v-else class="text-base md:text-lg font-semibold text-content-muted shrink-0">—</div>
       </div>
     </div>
   </div>
