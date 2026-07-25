@@ -30,7 +30,11 @@ if [ "$PUID" != "0" ] || [ "$PGID" != "0" ]; then
   chown -R "$PUID:$PGID" /data
 
   echo "Running as uid=$PUID($USER_NAME) gid=$PGID($GROUP_NAME)"
-  exec su-exec "$USER_NAME" "$@"
+  # Both ids, not the user name: node:alpine already ships a user at uid 1000
+  # whose primary group is 1000, so resolving by name would run with that group
+  # and quietly ignore PGID. Files created at runtime would then land in the
+  # wrong group while everything chowned above sat in the right one.
+  exec su-exec "$PUID:$PGID" "$@"
 else
   exec "$@"
 fi
