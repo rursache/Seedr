@@ -1,4 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { SeedManager } from '../src/core/seed-manager.js';
 import {
   checkTorrentEligible,
@@ -505,5 +508,76 @@ describe('SeedManager active slot handling', () => {
     expect(getSlotOccupyingTorrents(manager)).toEqual([[queued.seedState.infoHash, queued]]);
 
     saveSpy.mockRestore();
+  });
+});
+
+/*
+ * The watched directory is rescanned on every start, so a removal that leaves
+ * the .torrent behind only unloads until the next restart brings it back.
+ */
+describe('SeedManager torrent file deletion', () => {
+  function withTorrentFile(manager: any, id: string) {
+    const dir = mkdtempSync(join(tmpdir(), 'seedr-remove-'));
+    const filePath = join(dir, `${id}.torrent`);
+    writeFileSync(filePath, 'x');
+    const torrent = makeManagedTorrent(id, { active: false, completed: false });
+    torrent.meta.filePath = filePath;
+    manager.torrents.set(torrent.seedState.infoHash, torrent);
+    return { dir, filePath, hash: torrent.seedState.infoHash };
+  }
+
+  it('deletes the .torrent when asked to', async () => {
+    const manager = createManager();
+    manager.running = false;
+    const { dir, filePath, hash } = withTorrentFile(manager, 'a');
+
+    await manager.removeTorrent(hash, true);
+
+    expect(existsSync(filePath)).toBe(false);
+    expect(manager.torrents.has(hash)).toBe(false);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('leaves the file alone by default, which is how the watcher calls it', async () => {
+    const manager = createManager();
+    manager.running = false;
+    const { dir, filePath, hash } = withTorrentFile(manager, 'b');
+
+    await manager.removeTorrent(hash);
+
+    expect(existsSync(filePath)).toBe(true);
+    expect(manager.torrents.has(hash)).toBe(false);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('treats an already missing file as success', async () => {
+    const manager = createManager();
+    manager.running = false;
+    const { dir, filePath, hash } = withTorrentFile(manager, 'c');
+    rmSync(filePath);
+
+    await expect(manager.removeTorrent(hash, true)).resolves.toBeUndefined();
+
+    expect(manager.torrents.has(hash)).toBe(false);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('keeps the torrent loaded when the file cannot be deleted', async () => {
+    const manager = createManager();
+    manager.running = false;
+    const dir = mkdtempSync(join(tmpdir(), 'seedr-remove-'));
+    // a directory cannot be unlinked, which stands in for any non-ENOENT failure
+    const filePath = join(dir, 'undeletable.torrent');
+    mkdirSync(filePath);
+    const torrent = makeManagedTorrent('d', { active: false, completed: false });
+    torrent.meta.filePath = filePath;
+    const hash = torrent.seedState.infoHash;
+    manager.torrents.set(hash, torrent);
+
+    await expect(manager.removeTorrent(hash, true)).rejects.toThrow();
+
+    // reporting the failure is only useful if nothing was half-removed
+    expect(manager.torrents.has(hash)).toBe(true);
+    rmSync(dir, { recursive: true, force: true });
   });
 });

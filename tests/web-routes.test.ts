@@ -69,7 +69,7 @@ describe('Torrent Routes', () => {
     expect(res.json().error).toMatch(/Invalid infoHash/);
   });
 
-  it('DELETE /api/torrents/:infoHash removes a torrent', async () => {
+  it('DELETE /api/torrents/:infoHash removes a torrent and its file', async () => {
     const hash = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2';
     const res = await server.inject({
       method: 'DELETE',
@@ -77,7 +77,22 @@ describe('Torrent Routes', () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().success).toBe(true);
-    expect(mockSM.removeTorrent).toHaveBeenCalledWith(hash);
+    // the second argument is what stops a restart from loading it straight back
+    expect(mockSM.removeTorrent).toHaveBeenCalledWith(hash, true);
+  });
+
+  it('DELETE /api/torrents/:infoHash reports a file that could not be deleted', async () => {
+    mockSM.removeTorrent.mockRejectedValueOnce(
+      Object.assign(new Error('EACCES'), { code: 'EACCES' })
+    );
+    const hash = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2';
+    const res = await server.inject({
+      method: 'DELETE',
+      url: `/api/torrents/${hash}`,
+    });
+    // silently succeeding would tell the user it was removed when it is due back
+    expect(res.statusCode).toBe(500);
+    expect(res.json().error).toMatch(/could not delete/i);
   });
 
   it('DELETE /api/torrents/:infoHash returns 404 for unknown hash', async () => {

@@ -37,6 +37,8 @@ docker compose up -d
 
 The web UI is available at `http://localhost:8080`. Drop `.torrent` files into the `data/torrents/` directory or upload via the dashboard.
 
+That directory is the source of truth and is rescanned on every start, so removing a torrent from the dashboard deletes its `.torrent` file. The Remove button asks for confirmation first.
+
 ### Docker manual
 
 ```bash

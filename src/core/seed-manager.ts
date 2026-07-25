@@ -309,8 +309,8 @@ export class SeedManager extends EventEmitter implements SeedContext {
     return addTorrent(this, filePath);
   }
 
-  async removeTorrent(infoHash: string): Promise<void> {
-    return removeTorrent(this, infoHash);
+  async removeTorrent(infoHash: string, deleteFile = false): Promise<void> {
+    return removeTorrent(this, infoHash, deleteFile);
   }
 
   getConfig(): AppConfig {

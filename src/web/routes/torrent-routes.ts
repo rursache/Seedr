@@ -60,7 +60,16 @@ export function registerTorrentRoutes(server: FastifyInstance, seedManager: Seed
         return reply.status(404).send({ error: 'Torrent not found' });
       }
 
-      await seedManager.removeTorrent(infoHash);
+      // Deletes the .torrent as well. Leaving it behind would only unload the
+      // torrent until the next restart rescanned the directory and loaded it
+      // again, which reads as the removal having been ignored.
+      try {
+        await seedManager.removeTorrent(infoHash, true);
+      } catch {
+        return reply
+          .status(500)
+          .send({ error: 'Could not delete the .torrent file, so the torrent was left loaded' });
+      }
 
       return { success: true };
     }

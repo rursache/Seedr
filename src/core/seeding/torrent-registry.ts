@@ -1,4 +1,4 @@
-import { readdirSync, existsSync } from 'node:fs';
+import { readdirSync, existsSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { TORRENTS_DIR } from '../../config/config.js';
 import type {
@@ -112,9 +112,28 @@ export function addTorrent(ctx: SeedContext, filePath: string): boolean {
   }
 }
 
-export async function removeTorrent(ctx: SeedContext, infoHash: string): Promise<void> {
+/**
+ * Unloads a torrent, and with `deleteFile` also removes it from the watched
+ * directory.
+ *
+ * That flag is the difference between the two reasons this runs. A user asking
+ * to remove a torrent has to delete the file: the directory is the source of
+ * truth that is rescanned on every start, so unloading alone means the torrent
+ * reappears after a restart. The watcher calls this without the flag, because by
+ * then the file is already gone.
+ *
+ * The file goes first so a failure leaves the torrent loaded rather than
+ * half-removed, and the caller hears about it instead of the user being told the
+ * torrent was removed when it is due back on the next restart.
+ */
+export async function removeTorrent(
+  ctx: SeedContext,
+  infoHash: string,
+  deleteFile = false
+): Promise<void> {
   const torrent = ctx.torrents.get(infoHash);
   if (!torrent) return;
+  if (deleteFile) deleteTorrentFile(torrent.meta.filePath, torrent.meta.name);
   const wasOccupyingSlot = torrent.active && !torrent.completed;
 
   // Send stopped announce before removing (awaited so data is still available)
@@ -136,5 +155,17 @@ export async function removeTorrent(ctx: SeedContext, infoHash: string): Promise
   // If an active torrent was removed and we have a seed limit, activate a queued one
   if (wasOccupyingSlot && ctx.config.simultaneousSeed !== -1) {
     activateNextQueued(ctx);
+  }
+}
+
+/** Throws on anything except the file already being gone, which is the goal. */
+function deleteTorrentFile(filePath: string, name: string): void {
+  try {
+    unlinkSync(filePath);
+    logger.info({ name, filePath }, 'Torrent file deleted');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
+    logger.error({ error, filePath }, 'Failed to delete the torrent file');
+    throw error;
   }
 }

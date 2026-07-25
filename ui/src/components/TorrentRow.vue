@@ -78,7 +78,7 @@ function announce() {
             ? 'text-danger-accent bg-danger-strong/20 border border-danger-strong/40'
             : 'text-content-muted hover:text-danger-accent bg-danger-strong/5 hover:bg-danger-strong/10 border border-danger-strong/10 hover:border-danger-strong/20'"
         >
-          {{ confirmingRemove ? 'Confirm?' : 'Remove' }}
+          {{ confirmingRemove ? 'Delete file?' : 'Remove' }}
         </button>
       </div>
     </div>
