@@ -157,6 +157,7 @@ export interface AppConfig {
   minSeeders: number;
   uploadRatioTarget: number; // -1 = unlimited
   showFileName: boolean; // show .torrent filename instead of torrent title in UI
+  theme: string; // UI theme id, resolved against the registry in the browser
 }
 
 // ── Runtime types ──

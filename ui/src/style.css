@@ -98,3 +98,27 @@
     color-scheme: dark;
   }
 }
+
+/*
+ * Additional themes.
+ *
+ * The id in the selector is the one registered in src/themes.ts and stored in
+ * config.json. Override only what differs — every token left out keeps the
+ * value from @theme above, so a theme can be a handful of lines.
+ *
+ * :root[data-theme="ember"] {
+ *   --color-primary: oklch(64% 0.2 35);
+ *   --color-primary-accent: oklch(78% 0.17 40);
+ *   --color-primary-soft: oklch(38% 0.1 33);
+ * }
+ *
+ * A light theme additionally flips the surface and content ramps and the
+ * color-scheme, so native controls follow:
+ *
+ * :root[data-theme="daylight"] {
+ *   color-scheme: light;
+ *   --color-surface: oklch(98% 0 0);
+ *   --color-content: oklch(15% 0 0);
+ *   ...
+ * }
+ */

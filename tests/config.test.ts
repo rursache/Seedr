@@ -38,6 +38,7 @@ function fullConfig(overrides: Record<string, unknown> = {}) {
     minSeeders: 1,
     uploadRatioTarget: 1.5,
     showFileName: false,
+    theme: 'midnight',
     ...overrides,
   };
 }
@@ -196,6 +197,21 @@ describe('Config', () => {
       writeConfig(fullConfig({ showFileName: 'yes' }));
       const config = loadConfig();
       expect(config.showFileName).toBe(true);
+    });
+
+    it('should keep a valid theme id', () => {
+      writeConfig(fullConfig({ theme: 'daylight' }));
+      expect(loadConfig().theme).toBe('daylight');
+    });
+
+    it('should repair a theme id that is not a slug', () => {
+      writeConfig(fullConfig({ theme: 'Not A Slug!' }));
+      expect(loadConfig().theme).toBe('midnight');
+    });
+
+    it('should repair a non-string theme', () => {
+      writeConfig(fullConfig({ theme: 42 }));
+      expect(loadConfig().theme).toBe('midnight');
     });
 
     it('should fall back to full defaults on malformed JSON', () => {

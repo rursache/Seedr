@@ -100,6 +100,7 @@ All configuration is managed through the web UI Settings panel. Settings are per
 | Keep With Zero Leechers | true | Keep seeding torrents that have no leechers |
 | Skip If No Peers | true | Don't report upload if no peers are connected |
 | Show Filename | true | Show .torrent filename instead of torrent title in the UI |
+| Theme | midnight | UI theme (see [Themes](#themes)) |
 
 The following UI preferences are saved in the browser (localStorage) and not in `config.json`:
 
@@ -158,6 +159,19 @@ When enabled, the browser will prompt for credentials when accessing the UI. All
 Seedr ships with several `.client` profile files that define how it emulates a specific BitTorrent client. Each profile controls peer ID format, key generation algorithm, URL encoding rules, HTTP headers, and query parameter ordering to match the real client's announce behavior.
 
 Profiles are stored in the `data/clients/` directory and can be selected from the Settings panel. You can also add custom profiles by placing `.client` files in that directory.
+
+## Themes
+
+The UI is built on semantic colour tokens rather than hardcoded colours, so a theme is a small block of CSS variable overrides. Seedr currently ships one theme, `midnight`, whose values live in the `@theme` block in `ui/src/style.css` and also act as the base every other theme inherits from.
+
+Tokens are grouped into surfaces (`surface`, `surface-raised`, `surface-input`, `surface-hover`), borders (`line-subtle`, `line`, `line-strong`), text tiers (`content` through `content-ghost`), a modal `scrim`, and five accents: `primary`, `danger`, `warning`, `waiting` and `info`. Each accent has steps for solid fills, coloured text and tinted badge backgrounds.
+
+To add one:
+
+1. add a `:root[data-theme="<id>"]` block in `ui/src/style.css`, overriding only the tokens that differ. Anything left out keeps the `midnight` value, so a theme can be a handful of lines
+2. register it in `ui/src/themes.ts`
+
+A theme selector appears in the Settings panel automatically once more than one theme is registered, and the choice is stored in `config.json`. Themes may set `color-scheme: light` so scrollbars and native form controls follow a light palette.
 
 ## API
 

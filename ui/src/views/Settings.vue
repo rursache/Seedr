@@ -2,6 +2,7 @@
 import { ref, watch, computed, onUnmounted } from 'vue';
 import { useSeedrStore } from '../stores/seedr';
 import ToggleSwitch from '../components/ToggleSwitch.vue';
+import { THEMES, DEFAULT_THEME } from '../themes';
 import {
   validatePort,
   validateUploadRates,
@@ -28,6 +29,7 @@ const form = ref({
   minSeeders: 1,
   uploadRatioTarget: -1,
   showFileName: true,
+  theme: DEFAULT_THEME,
 });
 
 const saving = ref(false);
@@ -101,6 +103,16 @@ defineExpose({ save, saving, saveMessage, formReady, portWarning, speedWarning, 
       <!-- UI section -->
       <div class="space-y-3">
         <h3 class="text-xs font-semibold text-content-muted uppercase tracking-wider">Interface</h3>
+
+        <div v-if="THEMES.length > 1">
+          <label class="block text-sm font-medium text-content-strong mb-1">Theme</label>
+          <select
+            v-model="form.theme"
+            class="w-full bg-surface-input border border-line rounded-lg px-3 py-2 text-sm text-content focus:outline-none focus:border-primary-strong transition-colors"
+          >
+            <option v-for="t in THEMES" :key="t.id" :value="t.id">{{ t.label }}</option>
+          </select>
+        </div>
 
         <ToggleSwitch v-model="form.showFileName" label="Show filename instead of torrent title" />
       </div>

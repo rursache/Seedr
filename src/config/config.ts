@@ -19,6 +19,9 @@ const configSchema = z.object({
   minSeeders: z.number().int().min(0).default(1),
   uploadRatioTarget: z.number().default(-1),
   showFileName: z.boolean().default(true),
+  // The set of themes lives in the UI, since that is where their CSS lives.
+  // Validated as a bounded slug here; an unknown id falls back in the browser.
+  theme: z.string().min(1).max(32).regex(/^[a-z0-9-]+$/).default('midnight'),
 });
 
 const stateSchema = z.object({
@@ -95,6 +98,7 @@ function defaultConfig(): AppConfig {
     minSeeders: 1,
     uploadRatioTarget: -1,
     showFileName: true,
+    theme: 'midnight',
   };
 }
 

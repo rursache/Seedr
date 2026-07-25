@@ -7,8 +7,11 @@ import TorrentUpload from './components/TorrentUpload.vue';
 import EventLog from './components/EventLog.vue';
 import ModalDialog from './components/ModalDialog.vue';
 import DropZone from './components/DropZone.vue';
+import { useTheme } from './composables/useTheme';
 
 const store = useSeedrStore();
+
+useTheme();
 const showSettings = ref(false);
 const showEventLog = ref(false);
 const lastSeenEventId = ref(0);

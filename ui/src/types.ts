@@ -30,6 +30,7 @@ export interface AppConfig {
   minSeeders: number;
   uploadRatioTarget: number;
   showFileName: boolean;
+  theme: string;
 }
 
 export interface PortCheckStatus {
