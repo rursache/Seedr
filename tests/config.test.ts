@@ -39,6 +39,7 @@ function fullConfig(overrides: Record<string, unknown> = {}) {
     uploadRatioTarget: 1.5,
     showFileName: false,
     theme: 'midnight',
+    colorStyle: 'dark',
     ...overrides,
   };
 }

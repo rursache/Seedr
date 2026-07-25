@@ -85,6 +85,14 @@ export const useSeedrStore = defineStore('seedr', () => {
     actionPending.value = false;
   });
 
+  // The backend broadcasts this after any config change, so a setting altered in
+  // another tab or through the API applies here without a reload — which is what
+  // makes the theme and colour style follow immediately everywhere.
+  socket.on('config:updated', (cfg: AppConfig) => {
+    config.value = cfg;
+    configLoaded.value = true;
+  });
+
   socket.on('disconnect', () => {
     status.value = null;
     torrents.value = [];

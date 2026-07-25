@@ -101,6 +101,7 @@ All configuration is managed through the web UI Settings panel. Settings are per
 | Skip If No Peers | true | Don't report upload if no peers are connected |
 | Show Filename | true | Show .torrent filename instead of torrent title in the UI |
 | Theme | midnight | UI theme (see [Themes](#themes)) |
+| Color Style | dark | Whether the theme renders light or dark, or follows the OS (auto) |
 
 The following UI preferences are saved in the browser (localStorage) and not in `config.json`:
 
@@ -173,7 +174,9 @@ To add one:
 1. add a `:root[data-theme="<id>"]` block in `ui/src/style.css`, overriding only the tokens that differ. Anything left out keeps the `midnight` value, so a theme can be a handful of lines
 2. register it in `ui/src/themes.ts`
 
-A theme selector appears in the Settings panel automatically once more than one theme is registered, and the choice is stored in `config.json`. Themes may set `color-scheme: light` so scrollbars and native form controls follow a light palette.
+Theme and Color Style are both in the Settings panel and are stored in `config.json`. Changing either applies immediately, before saving, and reverts if the panel is closed without saving. A change saved in one browser reaches any other open browser straight away.
+
+Color Style is separate from the theme: the theme picks the palette, Color Style decides whether it renders light or dark, with `auto` following the operating system and reacting to it live. `midnight` ships both, and its light values double as the base any future theme inherits in light mode, so a new theme is legible in light without extra work. A theme that wants its own light values overrides them under `:root[data-theme="<id>"][data-color-style="light"]`.
 
 ## API
 

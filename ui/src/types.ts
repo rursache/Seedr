@@ -31,6 +31,7 @@ export interface AppConfig {
   uploadRatioTarget: number;
   showFileName: boolean;
   theme: string;
+  colorStyle: 'auto' | 'light' | 'dark';
 }
 
 export interface PortCheckStatus {

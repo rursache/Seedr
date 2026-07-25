@@ -158,6 +158,7 @@ export interface AppConfig {
   uploadRatioTarget: number; // -1 = unlimited
   showFileName: boolean; // show .torrent filename instead of torrent title in UI
   theme: string; // UI theme id, resolved against the registry in the browser
+  colorStyle: 'auto' | 'light' | 'dark'; // light or dark rendering of that theme
 }
 
 // ── Runtime types ──

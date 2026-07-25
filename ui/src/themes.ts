@@ -24,3 +24,21 @@ export const DEFAULT_THEME = 'midnight';
 export function resolveTheme(id: string | undefined | null): string {
   return THEMES.some((t) => t.id === id) ? (id as string) : DEFAULT_THEME;
 }
+
+/**
+ * Colour style is orthogonal to the theme: the theme picks the palette, this
+ * picks whether that palette renders light or dark. `auto` follows the OS.
+ */
+export type ColorStyle = 'auto' | 'light' | 'dark';
+
+export const COLOR_STYLES: { id: ColorStyle; label: string }[] = [
+  { id: 'auto', label: 'Auto' },
+  { id: 'light', label: 'Light' },
+  { id: 'dark', label: 'Dark' },
+];
+
+export const DEFAULT_COLOR_STYLE: ColorStyle = 'dark';
+
+export function resolveColorStyle(id: string | undefined | null): ColorStyle {
+  return COLOR_STYLES.some((s) => s.id === id) ? (id as ColorStyle) : DEFAULT_COLOR_STYLE;
+}

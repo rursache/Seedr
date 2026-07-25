@@ -65,7 +65,7 @@ onMounted(() => {
               v-if="store.isSeeding"
               @click="store.stopSeeding()"
               :disabled="store.actionPending"
-              class="px-2 md:px-3 py-1.5 bg-danger-strong/50 hover:bg-danger-strong/70 disabled:opacity-50 text-content rounded-lg text-xs font-medium transition-colors"
+              class="px-2 md:px-3 py-1.5 bg-danger-strong/50 hover:bg-danger-strong/70 disabled:opacity-50 text-on-accent rounded-lg text-xs font-medium transition-colors"
             >
               <span class="hidden md:inline">{{ store.actionPending ? 'Stopping...' : 'Stop Seeding' }}</span>
               <span class="md:hidden">{{ store.actionPending ? '...' : 'Stop' }}</span>
@@ -74,7 +74,7 @@ onMounted(() => {
               v-else
               @click="store.startSeeding()"
               :disabled="store.actionPending || store.torrents.length === 0"
-              class="px-2 md:px-3 py-1.5 bg-primary/90 hover:bg-primary-strong disabled:opacity-50 text-content rounded-lg text-xs font-medium transition-colors"
+              class="px-2 md:px-3 py-1.5 bg-primary/90 hover:bg-primary-strong disabled:opacity-50 text-on-accent rounded-lg text-xs font-medium transition-colors"
             >
               <span class="hidden md:inline">{{ store.actionPending ? 'Starting...' : 'Start Seeding' }}</span>
               <span class="md:hidden">{{ store.actionPending ? '...' : 'Start' }}</span>
@@ -167,7 +167,7 @@ onMounted(() => {
         <button
           @click="saveSettings"
           :disabled="settingsSaving || !settingsFormReady"
-          class="px-4 py-1.5 bg-primary hover:bg-primary-strong disabled:opacity-50 disabled:cursor-not-allowed border border-primary text-content rounded-lg text-xs font-medium transition-colors"
+          class="px-4 py-1.5 bg-primary hover:bg-primary-strong disabled:opacity-50 disabled:cursor-not-allowed border border-primary text-on-accent rounded-lg text-xs font-medium transition-colors"
         >
           {{ settingsSaving ? 'Saving...' : 'Save' }}
         </button>

@@ -3,7 +3,8 @@ import { ref, watch, computed, onUnmounted } from 'vue';
 import { useSeedrStore } from '../stores/seedr';
 import ToggleSwitch from '../components/ToggleSwitch.vue';
 import SelectField from '../components/SelectField.vue';
-import { THEMES, DEFAULT_THEME } from '../themes';
+import { THEMES, COLOR_STYLES, DEFAULT_THEME, DEFAULT_COLOR_STYLE } from '../themes';
+import { previewAppearance, clearAppearancePreview } from '../composables/useTheme';
 import {
   validatePort,
   validateUploadRates,
@@ -31,6 +32,7 @@ const form = ref({
   uploadRatioTarget: -1,
   showFileName: true,
   theme: DEFAULT_THEME,
+  colorStyle: DEFAULT_COLOR_STYLE,
 });
 
 const saving = ref(false);
@@ -64,6 +66,17 @@ const rotationWarning = computed(() =>
 const ratioWarning = computed(() => validateRatioTarget(form.value.uploadRatioTarget));
 
 const themeOptions = computed(() => THEMES.map((t) => ({ value: t.id, label: t.label })));
+
+const colorStyleOptions = computed(() => COLOR_STYLES.map((s) => ({ value: s.id, label: s.label })));
+
+// Appearance previews as soon as it is picked, and reverts if the panel is
+// closed without saving. Saving persists it to config.json like any other field.
+watch(
+  () => [form.value.theme, form.value.colorStyle] as const,
+  ([theme, colorStyle]) => previewAppearance(theme, colorStyle)
+);
+
+onUnmounted(clearAppearancePreview);
 
 const clientOptions = computed(() => store.clients.map((c) => ({ value: c, label: c })));
 
@@ -109,21 +122,11 @@ defineExpose({ save, saving, saveMessage, formReady, portWarning, speedWarning, 
       <div class="space-y-3">
         <h3 class="text-xs font-semibold text-content-muted uppercase tracking-wider">Interface</h3>
 
-        <!-- Grid items stretch, so both fields end up the same height as the
-             taller one and the toggle centres against the select beside it -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div class="flex flex-col">
-            <label class="block text-sm font-medium text-content-strong mb-1">Display</label>
-            <div class="flex-1 flex items-center">
-              <ToggleSwitch
-                v-model="form.showFileName"
-                label="Show filename instead of torrent title"
-                class="w-full"
-              />
-            </div>
-          </div>
+        <ToggleSwitch v-model="form.showFileName" label="Show filename instead of torrent title" />
 
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
           <SelectField v-model="form.theme" label="Theme" :options="themeOptions" />
+          <SelectField v-model="form.colorStyle" label="Color Style" :options="colorStyleOptions" />
         </div>
       </div>
 

@@ -22,6 +22,7 @@ const configSchema = z.object({
   // The set of themes lives in the UI, since that is where their CSS lives.
   // Validated as a bounded slug here; an unknown id falls back in the browser.
   theme: z.string().min(1).max(32).regex(/^[a-z0-9-]+$/).default('midnight'),
+  colorStyle: z.enum(['auto', 'light', 'dark']).default('dark'),
 });
 
 const stateSchema = z.object({
@@ -121,6 +122,7 @@ function defaultConfig(): AppConfig {
     uploadRatioTarget: -1,
     showFileName: true,
     theme: 'midnight',
+    colorStyle: 'dark',
   };
 }
 
