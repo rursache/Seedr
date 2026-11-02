@@ -1,0 +1,18 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+  configure)
+    if ! getent passwd seedr >/dev/null; then
+      adduser --system --group --home /var/lib/seedr --no-create-home \
+              --shell /usr/sbin/nologin --gecos "Seedr service" seedr
+    fi
+    if [ -d /run/systemd/system ]; then
+      systemctl daemon-reload || true
+      systemctl enable seedr.service || true
+      systemctl restart seedr.service || true
+    fi
+    ;;
+esac
+
+exit 0

@@ -50,6 +50,15 @@ docker run -d \
   ghcr.io/rursache/seedr:latest
 ```
 
+### Native installers (.deb / .exe)
+
+Each release also ships installers that bundle their own Node.js runtime, so nothing else needs to be installed:
+
+- **Debian / Ubuntu** (`amd64`, `arm64`): `sudo apt install ./seedr_<version>_<arch>.deb`. Seedr runs as the `seedr` systemd service, stores its data in `/var/lib/seedr` and is configured through `/etc/default/seedr`. Logs: `journalctl -u seedr`.
+- **Windows 10/11 (x64)**: run `Seedr-Setup-<version>-x64.exe`. Seedr is installed as the `Seedr` Windows service, with data in `C:\ProgramData\Seedr\data` and settings in `C:\ProgramData\Seedr\seedr.env`. The installer adds a firewall rule for `node.exe` so the BitTorrent port is reachable.
+
+The web UI is at `http://localhost:8080`. Native installs listen on `127.0.0.1` only (the UI has no authentication by default); set `HOST=0.0.0.0` together with `USERNAME` and `PASSWORD` in the settings file to reach it from other devices. Packaging scripts live in `packaging/`, and the `Installers` workflow builds them when a release is published.
+
 ### Production build
 
 ```bash

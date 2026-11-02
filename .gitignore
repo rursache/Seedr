@@ -7,3 +7,4 @@ ui/node_modules/
 ui/dist/
 *.DS_Store
 src/version.json
+build/

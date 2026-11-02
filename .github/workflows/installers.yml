@@ -1,0 +1,124 @@
+name: Installers (.deb / .exe)
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  stage:
+    name: Stage ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [linux-x64, linux-arm64, win-x64]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Build and stage
+        env:
+          VERSION: ${{ github.event_name == 'release' && github.ref_name || 'dev' }}
+          COMMIT: ${{ github.sha }}
+        run: packaging/stage.sh ${{ matrix.target }}
+
+      # tar keeps file modes, which upload-artifact would otherwise drop
+      - name: Pack staged tree
+        run: tar -C build/stage/${{ matrix.target }} -czf stage-${{ matrix.target }}.tar.gz seedr
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stage-${{ matrix.target }}
+          path: stage-${{ matrix.target }}.tar.gz
+          retention-days: 1
+
+  deb:
+    name: .deb (${{ matrix.arch }})
+    needs: stage
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            target: linux-x64
+          - arch: arm64
+            target: linux-arm64
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: stage-${{ matrix.target }}
+
+      - name: Unpack staged tree
+        run: |
+          mkdir -p build/stage/${{ matrix.target }}
+          tar -C build/stage/${{ matrix.target }} -xzf stage-${{ matrix.target }}.tar.gz
+
+      - name: Build .deb
+        env:
+          VERSION: ${{ github.event_name == 'release' && github.ref_name || 'dev' }}
+        run: packaging/build-deb.sh ${{ matrix.arch }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb-${{ matrix.arch }}
+          path: build/out/*.deb
+
+  windows:
+    name: .exe (Windows x64)
+    needs: stage
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: stage-win-x64
+
+      - name: Unpack staged tree
+        shell: bash
+        run: |
+          mkdir -p build/stage/win-x64
+          tar -C build/stage/win-x64 -xzf stage-win-x64.tar.gz
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      - name: Build installer
+        shell: pwsh
+        env:
+          REF_NAME: ${{ github.event_name == 'release' && github.ref_name || 'dev' }}
+        run: |
+          $version = $env:REF_NAME -replace '^v', ''
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$version" packaging\windows\seedr.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: build/out/*.exe
+
+  release:
+    name: Attach to release
+    if: github.event_name == 'release'
+    needs: [deb, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          pattern: "{deb-*,windows-installer}"
+          merge-multiple: true
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.ref_name }}" assets/* --clobber --repo "${{ github.repository }}"

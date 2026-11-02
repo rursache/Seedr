@@ -1,0 +1,20 @@
+<!-- WinSW service definition. %BASE% is the folder this file lives in. -->
+<service>
+  <id>Seedr</id>
+  <name>Seedr</name>
+  <description>BitTorrent ratio master with web UI (http://localhost:8080)</description>
+  <executable>%BASE%\node.exe</executable>
+  <!-- Settings (HOST, WEB_PORT, USERNAME, PASSWORD, ...) are read from seedr.env -->
+  <arguments>--env-file-if-exists="%ProgramData%\Seedr\seedr.env" dist\index.js</arguments>
+  <workingdirectory>%BASE%</workingdirectory>
+  <env name="NODE_ENV" value="production"/>
+  <env name="DATA_DIR" value="%ProgramData%\Seedr\data"/>
+  <startmode>Automatic</startmode>
+  <delayedAutoStart/>
+  <onfailure action="restart" delay="10 sec"/>
+  <logpath>%ProgramData%\Seedr\logs</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>5</keepFiles>
+  </log>
+</service>
