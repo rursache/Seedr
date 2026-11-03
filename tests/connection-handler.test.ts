@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import net from 'node:net';
 import { ConnectionHandler, type ConnectionContext } from '../src/core/connection-handler.js';
+import type { PortMapper, PortMappingStatus } from '../src/utils/port-mapper.js';
 
 // Use a random high port to avoid conflicts
 const TEST_PORT = 0; // Let OS pick
@@ -139,5 +140,94 @@ describe('ConnectionHandler — BT Handshake', () => {
     expect(closed).toBe(true);
 
     await handler2.stop();
+  });
+});
+
+describe('ConnectionHandler — port mapping', () => {
+  const mapped: PortMappingStatus = { state: 'mapped', protocol: 'UPnP', detail: 'forwarded' };
+  const off: PortMappingStatus = { state: 'disabled', protocol: null, detail: null };
+  let status: PortMappingStatus;
+  let finishMapping: (() => void) | null;
+  let mapper: { start: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn>; getStatus: ReturnType<typeof vi.fn> };
+  let handler: ConnectionHandler;
+
+  beforeEach(() => {
+    status = off;
+    finishMapping = null;
+    mapper = {
+      // Stays pending until the test lets the router "answer"
+      start: vi.fn(
+        () =>
+          new Promise<PortMappingStatus>((resolve) => {
+            finishMapping = () => {
+              status = mapped;
+              resolve(mapped);
+            };
+          })
+      ),
+      stop: vi.fn(async () => {
+        status = off;
+      }),
+      getStatus: vi.fn(() => status),
+    };
+    handler = new ConnectionHandler(mapper as unknown as PortMapper);
+  });
+
+  afterEach(async () => {
+    await handler.stop();
+  });
+
+  it('leaves the router alone unless asked', async () => {
+    await handler.start(TEST_PORT);
+
+    expect(mapper.start).not.toHaveBeenCalled();
+    await expect(handler.whenPortMapped()).resolves.toBeUndefined();
+  });
+
+  it('asks the router for the port it bound, without delaying startup', async () => {
+    await handler.start(TEST_PORT, { portMapping: true });
+
+    expect(mapper.start).toHaveBeenCalledWith(handler.port);
+    expect(handler.port).toBeGreaterThan(0);
+  });
+
+  it('lets callers wait for the router to answer', async () => {
+    await handler.start(TEST_PORT, { portMapping: true });
+
+    let settled = false;
+    const waiting = handler.whenPortMapped().then(() => (settled = true));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(settled).toBe(false);
+
+    finishMapping!();
+    await waiting;
+    expect(handler.portMapping).toEqual(mapped);
+  });
+
+  it('removes the mapping when it stops', async () => {
+    await handler.start(TEST_PORT, { portMapping: true });
+
+    await handler.stop();
+
+    expect(mapper.stop).toHaveBeenCalled();
+  });
+
+  it('switches the mapping on and off while the port stays bound', async () => {
+    await handler.start(TEST_PORT);
+    const port = handler.port;
+
+    await handler.setPortMapping(true);
+    expect(mapper.start).toHaveBeenCalledWith(port);
+
+    mapper.stop.mockClear();
+    await handler.setPortMapping(false);
+    expect(mapper.stop).toHaveBeenCalledOnce();
+    expect(handler.port).toBe(port);
+  });
+
+  it('does nothing when no port is bound', async () => {
+    await handler.setPortMapping(true);
+
+    expect(mapper.start).not.toHaveBeenCalled();
   });
 });

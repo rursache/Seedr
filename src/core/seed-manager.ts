@@ -110,7 +110,7 @@ export class SeedManager extends EventEmitter implements SeedContext {
 
     try {
       // Start connection handler (bind port, resolve IPs)
-      await this.connection.start(this.config.port);
+      await this.connection.start(this.config.port, { portMapping: this.config.portMapping });
 
       // Provide torrent context so incoming BT handshakes can be answered
       this.connection.setContext(this.createConnectionContext());
@@ -261,6 +261,8 @@ export class SeedManager extends EventEmitter implements SeedContext {
 
     this.portCheckResult = { result: null, error: null, checking: true };
     try {
+      // Checking before the router has been asked would report a port that is about to open as closed
+      await this.connection.whenPortMapped();
       const result = await checkPortReachable(ip, port);
       this.portCheckResult = { result, error: null, checking: false };
     } catch (err) {

@@ -17,6 +17,7 @@ Seedr loads `.torrent` files, connects to their trackers, and announces simulate
 - HTTP and UDP (BEP-15) tracker support with automatic failover
 - Bandwidth simulation with weighted distribution and jitter
 - Real-time web dashboard with drag-and-drop torrent upload
+- Opens the BitTorrent port on your router automatically (UPnP / NAT-PMP)
 - Port reachability checker via [check-host.net](https://check-host.net)
 - Docker support with persistent data volume
 - Configurable upload ratio targets, simultaneous seed limits, and more
@@ -97,6 +98,12 @@ The backend runs on port `8080` with hot reload. The Vite frontend dev server pr
 
 The BitTorrent port (default `49152`) is the port that trackers and peers use to verify your client is reachable. This is the port you need to forward on your router/firewall, not the web UI port. The web UI port (`8080`) should stay local and not be exposed to the internet. If you really want to expose the WebUI port as well, make sure to enable auth!
 
+By default Seedr asks your router to forward that port itself, over NAT-PMP and then UPnP, and renews the request while it runs. The result is shown under the external IP in the dashboard. Seedr removes the forwarding when it stops, or when you turn **Open the port on the router** off in the settings. It only works when the router has UPnP or NAT-PMP turned on and is the one connected to the internet:
+
+- **Another router in front of yours** (an ISP box behind your own router, for instance): the dashboard says so, and the port still has to be forwarded by hand on each of them.
+- **Docker**: containers on a bridge network do not see the router, so forward the port yourself, or run the container with `network_mode: host`.
+- **A mapping that never expires**: some routers only accept those, and one is left behind if Seedr is killed instead of stopped. Remove it in the router's page.
+
 ## Configuration
 
 All configuration is managed through the web UI Settings panel. Settings are persisted to `data/config.json`.
@@ -105,6 +112,7 @@ All configuration is managed through the web UI Settings panel. Settings are per
 |---------|---------|-------------|
 | Client Profile | first available qBittorrent profile | Which BT client to emulate |
 | Port | 49152 | Listening port announced to trackers |
+| Open the port on the router | on | Ask the router to forward the port (UPnP / NAT-PMP) |
 | Min Upload Rate | 100 KB/s | Minimum simulated upload speed |
 | Max Upload Rate | 500 KB/s | Maximum simulated upload speed |
 | Max Active Torrents | -1 (all) | How many torrents to seed at once (-1 = unlimited) |

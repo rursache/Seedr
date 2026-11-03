@@ -180,6 +180,7 @@ export function getDemoStatus(): SeedrStatus {
     externalIp: '203.0.113.42',
     externalIpv6: null,
     port: 51413,
+    portMapping: { state: 'mapped', protocol: 'UPnP', detail: 'Port 51413 forwarded by the router (UPnP)' },
     client: 'qbittorrent-5.1.0',
     globalUploadRate: 500,
     actualUploadRate: torrents.reduce((sum, t) => sum + t.uploadRate, 0),

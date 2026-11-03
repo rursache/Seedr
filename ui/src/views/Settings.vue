@@ -21,6 +21,7 @@ const store = useSeedrStore();
 const form = ref({
   client: '',
   port: 49152,
+  portMapping: true,
   minUploadRate: 100,
   maxUploadRate: 500,
   simultaneousSeed: -1,
@@ -151,6 +152,7 @@ defineExpose({ save, saving, saveMessage, formReady, portWarning, speedWarning, 
             />
           </div>
           <p v-if="portWarning" class="text-xs text-warning-accent -mt-2">{{ portWarning }}</p>
+          <ToggleSwitch v-model="form.portMapping" label="Open the port on the router (UPnP / NAT-PMP)" />
 
           <div class="grid grid-cols-2 gap-3">
             <div>

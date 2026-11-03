@@ -9,6 +9,7 @@ const logger = createLogger('config');
 const configSchema = z.object({
   client: z.string().min(1),
   port: z.number().int().min(1).max(65535).default(49152),
+  portMapping: z.boolean().default(true),
   minUploadRate: z.number().min(0).default(100),
   maxUploadRate: z.number().min(0).default(500),
   simultaneousSeed: z.number().int().min(-1).refine((v) => v !== 0, { message: 'Must be -1 (unlimited) or >= 1' }).default(-1),
@@ -111,6 +112,7 @@ function defaultConfig(): AppConfig {
   return {
     client: pickDefaultClient(),
     port: 49152,
+    portMapping: true,
     minUploadRate: 100,
     maxUploadRate: 500,
     simultaneousSeed: -1,

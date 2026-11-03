@@ -20,6 +20,7 @@ export interface TorrentInfo {
 export interface AppConfig {
   client: string;
   port: number;
+  portMapping: boolean;
   minUploadRate: number;
   maxUploadRate: number;
   simultaneousSeed: number;
@@ -40,11 +41,18 @@ export interface PortCheckStatus {
   error: string | null;
 }
 
+export interface PortMappingStatus {
+  state: 'disabled' | 'searching' | 'mapped' | 'limited' | 'failed';
+  protocol: 'UPnP' | 'NAT-PMP' | null;
+  detail: string | null;
+}
+
 export interface SeedrState {
   running: boolean;
   externalIp: string | null;
   externalIpv6: string | null;
   port: number;
+  portMapping?: PortMappingStatus;
   client: string;
   globalUploadRate: number;
   actualUploadRate: number;

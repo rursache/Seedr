@@ -35,6 +35,7 @@ export function buildStatus(ctx: SeedContext, extras: StatusExtras): SeedrStatus
     externalIp: ctx.connection.externalIp,
     externalIpv6: ctx.connection.externalIpv6,
     port: ctx.connection.port,
+    portMapping: ctx.connection.portMapping,
     client: ctx.config.client,
     globalUploadRate: ctx.bandwidth.getGlobalRate(),
     actualUploadRate: ctx.bandwidth.getActualRate(),
