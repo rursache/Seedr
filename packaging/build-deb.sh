@@ -30,32 +30,38 @@ MAINTAINER="${MAINTAINER:-Seedr packagers <noreply@users.noreply.github.com>}"
 
 PKG="$ROOT/build/deb/seedr_${DEB_VERSION}_${ARCH}"
 rm -rf "$PKG"
-mkdir -p "$PKG/DEBIAN" "$PKG/opt" "$PKG/lib/systemd/system" "$PKG/etc/default" "$ROOT/build/out"
+mkdir -p "$PKG/DEBIAN" "$PKG/opt" "$PKG/usr/bin" "$PKG/usr/share/applications" \
+  "$PKG/usr/share/icons/hicolor/scalable/apps" "$ROOT/build/out"
 
 cp -a "$STAGE" "$PKG/opt/seedr"
-install -m 644 "$ROOT/packaging/debian/seedr.service" "$PKG/lib/systemd/system/seedr.service"
-install -m 644 "$ROOT/packaging/debian/seedr.default" "$PKG/etc/default/seedr"
-for s in postinst prerm postrm; do
+# The desktop launcher sits next to the bundled node and finds the app from there
+install -m 755 "$ROOT/packaging/debian/seedr" "$PKG/opt/seedr/seedr"
+ln -s /opt/seedr/seedr "$PKG/usr/bin/seedr"
+install -m 644 "$ROOT/packaging/debian/io.github.rursache.Seedr.desktop" \
+  "$PKG/usr/share/applications/io.github.rursache.Seedr.desktop"
+install -m 644 "$ROOT/assets/logo.svg" "$PKG/usr/share/icons/hicolor/scalable/apps/seedr.svg"
+for s in preinst postinst; do
   install -m 755 "$ROOT/packaging/debian/$s" "$PKG/DEBIAN/$s"
 done
-echo "/etc/default/seedr" > "$PKG/DEBIAN/conffiles"
 
-SIZE=$(du -sk "$PKG/opt" "$PKG/lib" "$PKG/etc" | awk '{s+=$1} END {print s}')
+chmod -R go-w "$PKG"
+
+SIZE=$(du -sk "$PKG/opt" "$PKG/usr" | awk '{s+=$1} END {print s}')
 cat > "$PKG/DEBIAN/control" <<CONTROL
 Package: seedr
 Version: $DEB_VERSION
 Architecture: $ARCH
 Maintainer: $MAINTAINER
 Installed-Size: $SIZE
-Depends: adduser
+Depends: python3, python3-gi, gir1.2-gtk-3.0, gir1.2-webkit2-4.1 | gir1.2-webkit2-4.0
 Section: net
 Priority: optional
 Homepage: https://github.com/rursache/Seedr
-Description: BitTorrent ratio master with web UI
+Description: BitTorrent ratio master desktop application
  Seedr loads .torrent files, connects to their trackers and announces
  simulated upload data, emulating real BitTorrent clients. It ships with
- its own Node.js runtime, runs as a systemd service and exposes a web
- dashboard on http://localhost:8080 .
+ its own Node.js runtime and opens its dashboard in a native window; it
+ seeds for as long as that window is open.
 CONTROL
 
 dpkg-deb --root-owner-group -Zxz --build "$PKG" "$ROOT/build/out/"
