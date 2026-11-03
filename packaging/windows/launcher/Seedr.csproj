@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Desktop launcher: starts the bundled node.exe and shows its web UI in a WebView2 window.
+       .NET Framework 4.8 ships with Windows 10 (1903+) and 11, so nothing else has to be installed. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>Seedr</AssemblyName>
+    <RootNamespace>Seedr</RootNamespace>
+    <UseWindowsForms>true</UseWindowsForms>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <LangVersion>latest</LangVersion>
+    <ApplicationIcon>..\seedr.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Company>Seedr</Company>
+    <Product>Seedr</Product>
+    <Description>BitTorrent ratio master</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3967.48" />
+  </ItemGroup>
+
+</Project>

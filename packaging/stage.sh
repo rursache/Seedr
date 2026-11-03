@@ -1,6 +1,7 @@
 #!/bin/sh
 # Build a self-contained application tree (app + production deps + Node runtime)
-# that the .deb and Windows installers are made from.
+# that the .deb and Windows installers are made from. The desktop launchers are
+# added by build-deb.sh and by the Windows installer build (packaging/windows/launcher).
 #
 # Usage: packaging/stage.sh <linux-x64 | linux-arm64 | win-x64>
 #
@@ -23,10 +24,6 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 OUT="$ROOT/build/stage/$TARGET/seedr"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
-
-# Pinned: WinSW turns node.exe into a Windows service.
-WINSW_URL="https://github.com/winsw/winsw/releases/download/v2.12.0/WinSW-x64.exe"
-WINSW_SHA256="05b82d46ad331cc16bdc00de5c6332c1ef818df8ceefcd49c726553209b3a0da"
 
 cd "$ROOT"
 
@@ -82,14 +79,6 @@ else
   esac
 fi
 [ "$TARGET" = "win-x64" ] || chmod 755 "$OUT/node"
-
-if [ "$TARGET" = "win-x64" ]; then
-  echo "==> Adding Windows service wrapper (WinSW)"
-  curl -fsSL "$WINSW_URL" -o "$TMP/WinSW-x64.exe"
-  echo "$WINSW_SHA256  $TMP/WinSW-x64.exe" | sha256sum -c -
-  cp "$TMP/WinSW-x64.exe" "$OUT/seedr-service.exe"
-  cp packaging/windows/seedr-service.xml "$OUT/seedr-service.xml"
-fi
 
 # Normalise permissions (npm leaves a mix behind)
 chmod -R go-w,a+rX "$OUT"
