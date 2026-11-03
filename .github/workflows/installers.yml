@@ -90,6 +90,18 @@ jobs:
         shell: pwsh
         run: choco install innosetup --no-progress -y
 
+      # The desktop window: a small WinForms + WebView2 app that runs node.exe and shows its UI
+      - name: Build launcher
+        shell: pwsh
+        env:
+          REF_NAME: ${{ github.event_name == 'release' && github.ref_name || 'dev' }}
+        run: |
+          $version = $env:REF_NAME -replace '^v', ''
+          # Assembly versions are numeric; builds from a branch are 0.0.0
+          if ($version -notmatch '^\d+\.\d+\.\d+') { $version = '0.0.0' }
+          dotnet publish packaging/windows/launcher -c Release -o build/launcher "-p:Version=$version"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Build installer
         shell: pwsh
         env:
