@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -13,11 +14,12 @@ namespace Seedr
 {
     /// <summary>
     /// The Seedr window: a WebView2 showing the dashboard served by the bundled backend.
-    /// Closing it stops Seedr, like any other application.
+    /// Closing it leaves Seedr running in the notification area; Quit in the icon's menu stops it.
     /// </summary>
     sealed class MainForm : Form
     {
         const int TickMs = 250;
+        const int StatePollMs = 2000;
         const int StartupTimeoutMs = 60000;
         const string WebView2Page = "https://developer.microsoft.com/microsoft-edge/webview2/";
 
@@ -30,6 +32,9 @@ namespace Seedr
 
         readonly WebView2 view = new WebView2();
         readonly System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer { Interval = TickMs };
+        readonly System.Windows.Forms.Timer stateTimer = new System.Windows.Forms.Timer { Interval = StatePollMs };
+        readonly NotifyIcon tray = new NotifyIcon();
+        readonly ToolStripMenuItem toggleItem = new ToolStripMenuItem("Pause seeding") { Enabled = false };
         readonly EventWaitHandle showSignal;
         readonly string dataRoot = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Seedr");
@@ -38,6 +43,10 @@ namespace Seedr
         int waitedMs;
         bool loaded;
         bool closing;
+        bool quitting;
+        bool polling;
+        bool hintShown;
+        bool? engineRunning;
 
         public MainForm(EventWaitHandle showSignal)
         {
@@ -52,6 +61,35 @@ namespace Seedr
             view.Dock = DockStyle.Fill;
             Controls.Add(view);
             timer.Tick += OnTick;
+            stateTimer.Tick += OnStateTick;
+            BuildTray();
+        }
+
+        /// <summary>The icon is what is left of Seedr once the window is closed.</summary>
+        void BuildTray()
+        {
+            var menu = new ContextMenuStrip();
+            var show = new ToolStripMenuItem("Show Seedr");
+            show.Font = new Font(menu.Font, FontStyle.Bold);
+            show.Click += (sender, e) => ShowWindow();
+            toggleItem.Click += OnToggleSeeding;
+            var browser = new ToolStripMenuItem("Open in browser");
+            browser.Click += (sender, e) =>
+            {
+                if (backend != null) OpenExternal(backend.Url);
+            };
+            var quit = new ToolStripMenuItem("Quit");
+            quit.Click += (sender, e) => Quit();
+            menu.Items.AddRange(new ToolStripItem[] { show, toggleItem, browser, new ToolStripSeparator(), quit });
+
+            tray.Icon = Icon;
+            tray.Text = "Seedr";
+            tray.ContextMenuStrip = menu;
+            tray.MouseClick += (sender, e) =>
+            {
+                if (e.Button == MouseButtons.Left) ShowWindow();
+            };
+            tray.Visible = true;
         }
 
         protected override async void OnShown(EventArgs e)
@@ -81,7 +119,7 @@ namespace Seedr
                     "\r\n\r\nOpen the download page?",
                     "Seedr", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
                 if (answer == DialogResult.Yes) OpenExternal(WebView2Page);
-                Close();
+                Quit();
                 return;
             }
 
@@ -113,6 +151,43 @@ namespace Seedr
 
             web.NavigateToString(Splash);
             timer.Start();
+            stateTimer.Start();
+        }
+
+        async void OnStateTick(object sender, EventArgs e)
+        {
+            if (polling || closing || backend == null) return;
+            polling = true;
+            try
+            {
+                var running = await Task.Run(() => backend.IsEngineRunning());
+                if (!closing) ShowEngineState(running);
+            }
+            finally
+            {
+                polling = false;
+            }
+        }
+
+        void ShowEngineState(bool? running)
+        {
+            engineRunning = running;
+            toggleItem.Text = running == false ? "Resume seeding" : "Pause seeding";
+            toggleItem.Enabled = running != null;
+        }
+
+        async void OnToggleSeeding(object sender, EventArgs e)
+        {
+            if (engineRunning == null || backend == null) return;
+            var start = engineRunning == false;
+            ShowEngineState(start); // at once; the next poll corrects it if the request fails
+            try
+            {
+                await Task.Run(() => backend.SetEngineRunning(start));
+            }
+            catch (WebException)
+            {
+            }
         }
 
         void OnTick(object sender, EventArgs e)
@@ -143,10 +218,26 @@ namespace Seedr
 
         void Fail(string message)
         {
+            ShowWindow(); // it may be hidden in the notification area
             MessageBox.Show(this,
                 message + "\r\n\r\nDetails are in " + (backend != null ? backend.LogPath : dataRoot),
                 "Seedr", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            Quit();
+        }
+
+        /// <summary>Closing the window only hides it; this is what ends Seedr.</summary>
+        void Quit()
+        {
+            quitting = true;
             Close();
+        }
+
+        void ShowWindow()
+        {
+            if (closing) return;
+            if (!Visible) Show();
+            if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+            Activate();
         }
 
         void BringForward()
@@ -154,12 +245,7 @@ namespace Seedr
             // Runs on a thread-pool thread, possibly while the window is going away
             try
             {
-                BeginInvoke(new Action(() =>
-                {
-                    if (closing) return;
-                    if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
-                    Activate();
-                }));
+                BeginInvoke(new Action(ShowWindow));
             }
             catch (InvalidOperationException)
             {
@@ -169,10 +255,28 @@ namespace Seedr
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             base.OnFormClosing(e);
+
+            // The close button hides the window. Logging off or shutting down, and Quit, still end Seedr.
+            if (!quitting && e.CloseReason == CloseReason.UserClosing)
+            {
+                e.Cancel = true;
+                Hide();
+                if (!hintShown)
+                {
+                    hintShown = true;
+                    tray.ShowBalloonTip(4000, "Seedr is still running",
+                        "It keeps seeding from the notification area. Right-click the icon to quit.",
+                        ToolTipIcon.Info);
+                }
+                return;
+            }
+
             if (closing) return;
             closing = true;
 
             timer.Stop();
+            stateTimer.Stop();
+            tray.Visible = false; // gone at once, not once the backend has stopped
             Hide(); // stopping the backend can take a few seconds
             if (backend != null)
             {
@@ -184,6 +288,7 @@ namespace Seedr
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
             if (showWait != null) showWait.Unregister(null);
+            tray.Dispose();
             base.OnFormClosed(e);
         }
 

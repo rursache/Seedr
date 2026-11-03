@@ -54,6 +54,7 @@ Architecture: $ARCH
 Maintainer: $MAINTAINER
 Installed-Size: $SIZE
 Depends: python3, python3-gi, gir1.2-gtk-3.0, gir1.2-webkit2-4.1 | gir1.2-webkit2-4.0
+Recommends: gir1.2-ayatanaappindicator3-0.1 | gir1.2-appindicator3-0.1
 Section: net
 Priority: optional
 Homepage: https://github.com/rursache/Seedr
@@ -61,7 +62,7 @@ Description: BitTorrent ratio master desktop application
  Seedr loads .torrent files, connects to their trackers and announces
  simulated upload data, emulating real BitTorrent clients. It ships with
  its own Node.js runtime and opens its dashboard in a native window; it
- seeds for as long as that window is open.
+ keeps seeding from the notification area when that window is closed.
 CONTROL
 
 dpkg-deb --root-owner-group -Zxz --build "$PKG" "$ROOT/build/out/"

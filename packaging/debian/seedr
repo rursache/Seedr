@@ -2,17 +2,22 @@
 """Seedr desktop launcher.
 
 Starts the bundled Node.js backend for the current user and shows its web UI in
-a native window. Closing the window stops Seedr, like any other application.
+a native window. Closing the window leaves Seedr running in the notification
+area, where its icon offers to show the window again or to quit. On a desktop
+with no notification area, closing the window quits instead.
 
 Data lives in $XDG_DATA_HOME/seedr (~/.local/share/seedr), the backend's output
 goes to the system journal: journalctl -t seedr
 """
 import os
+import json
 import shutil
 import signal
 import socket
 import subprocess
 import syslog
+import threading
+import urllib.request
 from urllib.parse import urlparse
 
 # WebKitGTK can render a blank window on some GPU/driver combinations when its
@@ -29,6 +34,17 @@ except ValueError:
     gi.require_version("WebKit2", "4.0")
 from gi.repository import Gdk, Gio, GLib, Gtk, WebKit2  # noqa: E402
 
+# The notification-area icon is optional: without it, closing the window quits
+try:
+    gi.require_version("AyatanaAppIndicator3", "0.1")
+    from gi.repository import AyatanaAppIndicator3 as AppIndicator  # noqa: E402
+except (ValueError, ImportError):
+    try:
+        gi.require_version("AppIndicator3", "0.1")
+        from gi.repository import AppIndicator3 as AppIndicator  # noqa: E402
+    except (ValueError, ImportError):
+        AppIndicator = None
+
 APP_ID = "io.github.rursache.Seedr"
 APP_DIR = os.path.dirname(os.path.realpath(__file__))
 NODE = os.path.join(APP_DIR, "node")
@@ -37,6 +53,8 @@ DEFAULT_WEB_PORT = 8080
 TICK = 0.25  # seconds between checks on the backend
 STARTUP_TIMEOUT = 60  # seconds before giving up on the backend
 STOP_TIMEOUT = 15  # the backend sends its "stopped" announces within 10 s
+STATUS_POLL = 2  # seconds between looks at the engine state shown in the tray menu
+TRAY_WATCHER = "org.kde.StatusNotifierWatcher"
 
 SPLASH = """<!doctype html>
 <meta charset="utf-8">
@@ -119,12 +137,114 @@ class Backend:
             self.proc.wait()
 
 
+def tray_available():
+    """Whether something on this desktop is there to show notification-area icons.
+
+    Asked when the window is closed rather than once at startup: hiding a window
+    that has no icon to come back from would leave Seedr unreachable."""
+    if AppIndicator is None:
+        return False
+    try:
+        reply = Gio.bus_get_sync(Gio.BusType.SESSION, None).call_sync(
+            "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",
+            "NameHasOwner", GLib.Variant("(s)", (TRAY_WATCHER,)), GLib.VariantType("(b)"),
+            Gio.DBusCallFlags.NONE, 1000, None,
+        )
+        return reply.unpack()[0]
+    except GLib.Error:
+        return False
+
+
+class Tray:
+    """The notification-area icon. Its menu is what is left of Seedr once the window is closed."""
+
+    def __init__(self, app):
+        self.app = app
+        self.running = None  # engine state last seen, None while unknown
+        self.closed = threading.Event()
+        # 127.0.0.1 must not go through a proxy set in the environment
+        self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+        self.indicator = AppIndicator.Indicator.new(
+            APP_ID, "seedr", AppIndicator.IndicatorCategory.APPLICATION_STATUS)
+        self.indicator.set_title("Seedr")
+        self.indicator.set_status(AppIndicator.IndicatorStatus.ACTIVE)
+
+        menu = Gtk.Menu()
+        show = self.add_item(menu, "Show Seedr", lambda *_: app.show_window())
+        self.toggle = self.add_item(menu, "Pause seeding", self.on_toggle)
+        self.toggle.set_sensitive(False)  # until the engine has answered
+        self.add_item(menu, "Open in browser", self.on_browser)
+        menu.append(Gtk.SeparatorMenuItem())
+        self.add_item(menu, "Quit", lambda *_: app.request_quit())
+        menu.show_all()
+        self.indicator.set_menu(menu)
+        # What hosts that report a middle click call
+        self.indicator.set_secondary_activate_target(show)
+
+        threading.Thread(target=self.poll, daemon=True).start()
+
+    @staticmethod
+    def add_item(menu, label, handler):
+        item = Gtk.MenuItem(label=label)
+        item.connect("activate", handler)
+        menu.append(item)
+        return item
+
+    def close(self):
+        self.closed.set()
+        self.indicator.set_status(AppIndicator.IndicatorStatus.PASSIVE)
+
+    def request(self, path, method="GET"):
+        url = self.app.backend.url + "api/control/" + path
+        # No body: with one, urllib adds a form content type that the API turns down
+        with self.opener.open(urllib.request.Request(url, method=method), timeout=3) as reply:
+            return json.load(reply)
+
+    def poll(self):
+        while True:
+            try:
+                running = bool(self.request("status")["running"])
+            except (OSError, ValueError, KeyError, AttributeError):
+                running = None  # starting up, or gone
+            GLib.idle_add(self.show_state, running)
+            if self.closed.wait(STATUS_POLL):
+                return
+
+    def show_state(self, running):
+        self.running = running
+        self.toggle.set_label("Resume seeding" if running is False else "Pause seeding")
+        self.toggle.set_sensitive(running is not None)
+        return GLib.SOURCE_REMOVE
+
+    def on_toggle(self, _item):
+        action = "stop" if self.running else "start"
+
+        def send():
+            try:
+                self.request(action, "POST")
+            except (OSError, ValueError) as err:
+                syslog.syslog(syslog.LOG_ERR, "could not %s seeding: %s" % (action, err))
+
+        # Show the new state at once; the next poll corrects it if the request failed
+        self.show_state(not self.running)
+        threading.Thread(target=send, daemon=True).start()
+
+    def on_browser(self, _item):
+        try:
+            Gio.AppInfo.launch_default_for_uri(self.app.backend.url, None)
+        except GLib.Error as err:
+            syslog.syslog(syslog.LOG_ERR, "could not open the browser: %s" % err.message)
+
+
 class SeedrApp(Gtk.Application):
     def __init__(self):
         super().__init__(application_id=APP_ID)
         self.backend = None
         self.window = None
         self.view = None
+        self.tray = None
+        self.in_tray = False
         self.waited = 0.0
         self.loaded = False
 
@@ -162,6 +282,9 @@ class SeedrApp(Gtk.Application):
         self.window.add(self.view)
         self.window.show_all()
 
+        if AppIndicator is not None:
+            self.tray = Tray(self)
+
         GLib.timeout_add(int(TICK * 1000), self.on_tick)
 
     def do_shutdown(self):
@@ -169,15 +292,31 @@ class SeedrApp(Gtk.Application):
             self.backend.stop()
         Gtk.Application.do_shutdown(self)
 
+    def show_window(self):
+        if self.window is not None:
+            self.window.present()
+
     def request_quit(self):
         # Hide first: stopping the backend can take a few seconds
         if self.window is not None:
             self.window.hide()
+        if self.tray is not None:
+            self.tray.close()
         self.quit()
 
     def on_delete(self, window, _event):
         window.hide()
-        return False
+        if self.tray is None or not tray_available():
+            return False  # nothing to come back from: close the window, which quits
+
+        if not self.in_tray:
+            # Hidden windows do not keep a Gtk.Application alive; only quit() ends it now
+            self.in_tray = True
+            self.hold()
+            note = Gio.Notification.new("Seedr is still running")
+            note.set_body("It keeps seeding from the notification area. Use the icon's menu to quit.")
+            self.send_notification("in-tray", note)
+        return True
 
     def on_signal(self):
         self.request_quit()
@@ -202,6 +341,7 @@ class SeedrApp(Gtk.Application):
         return GLib.SOURCE_CONTINUE
 
     def fail(self, message):
+        self.show_window()
         dialog = Gtk.MessageDialog(
             transient_for=self.window, modal=True, message_type=Gtk.MessageType.ERROR,
             buttons=Gtk.ButtonsType.CLOSE, text=message,

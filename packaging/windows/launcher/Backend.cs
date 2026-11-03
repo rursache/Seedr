@@ -4,6 +4,7 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Seedr
 {
@@ -103,6 +104,41 @@ namespace Seedr
             }
         }
 
+        string Control(string action, string method, int timeoutMs)
+        {
+            var request = (HttpWebRequest)WebRequest.Create(Url + "api/control/" + action);
+            request.Method = method;
+            if (method == "POST") request.ContentLength = 0;
+            request.Proxy = null; // 127.0.0.1 must not go through a proxy configured for Windows
+            request.Timeout = timeoutMs;
+            using (var response = request.GetResponse())
+            using (var reader = new StreamReader(response.GetResponseStream(), Encoding.UTF8))
+            {
+                return reader.ReadToEnd();
+            }
+        }
+
+        /// <summary>Whether the engine is seeding, null while the backend cannot be reached.</summary>
+        public bool? IsEngineRunning()
+        {
+            try
+            {
+                // "running" is the first key of the status object, ahead of anything the torrents add
+                var match = Regex.Match(Control("status", "GET", 2000), "\"running\"\\s*:\\s*(true|false)");
+                return match.Success ? (bool?)(match.Groups[1].Value == "true") : null;
+            }
+            catch (WebException)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>Starts or stops the announces without ending the process.</summary>
+        public void SetEngineRunning(bool running)
+        {
+            Control(running ? "start" : "stop", "POST", StopTimeoutMs);
+        }
+
         public void Stop()
         {
             if (process == null || process.HasExited) return;
@@ -111,14 +147,7 @@ namespace Seedr
             // shutdown signal would: it sends the trackers their "stopped" announces and saves the state.
             try
             {
-                var request = (HttpWebRequest)WebRequest.Create(Url + "api/control/stop");
-                request.Method = "POST";
-                request.ContentLength = 0;
-                request.Proxy = null;
-                request.Timeout = StopTimeoutMs;
-                using (request.GetResponse())
-                {
-                }
+                Control("stop", "POST", StopTimeoutMs);
             }
             catch (WebException)
             {
