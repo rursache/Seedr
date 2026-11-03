@@ -1,0 +1,16 @@
+#!/bin/sh
+set -e
+
+# Earlier packages ran Seedr as a systemd service. Stop and unregister it before
+# its unit file is replaced, or it would keep the BitTorrent port from the app.
+# Data stays in /var/lib/seedr: it is not read any more, but not deleted either.
+case "$1" in
+  install|upgrade)
+    if [ -e /lib/systemd/system/seedr.service ] && [ -d /run/systemd/system ]; then
+      systemctl stop seedr.service || true
+      systemctl disable seedr.service || true
+    fi
+    ;;
+esac
+
+exit 0

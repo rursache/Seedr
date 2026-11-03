@@ -1,3 +1,5 @@
+import type { PortMappingStatus } from '../utils/port-mapper.js';
+
 // ── Client profile types (parsed from .client JSON files) ──
 
 export type KeyAlgorithmType =
@@ -147,6 +149,7 @@ export interface SeedState {
 export interface AppConfig {
   client: string;
   port: number; // 0 = random, default 49152
+  portMapping: boolean; // ask the router to forward the port (UPnP / NAT-PMP)
   minUploadRate: number; // KB/s
   maxUploadRate: number; // KB/s
   simultaneousSeed: number;
@@ -236,6 +239,7 @@ export interface SeedrStatus {
   externalIp: string | null;
   externalIpv6: string | null;
   port: number;
+  portMapping: PortMappingStatus;
   client: string;
   globalUploadRate: number; // target rate in KB/s
   actualUploadRate: number; // real throughput in bytes/s from last tick

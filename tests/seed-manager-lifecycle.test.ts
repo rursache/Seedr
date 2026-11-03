@@ -12,6 +12,7 @@ function makeConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   return {
     client: 'test.client',
     port: 49152,
+    portMapping: true,
     minUploadRate: 100,
     maxUploadRate: 500,
     simultaneousSeed: -1,
@@ -96,6 +97,7 @@ function createManager(overrides: Partial<AppConfig> = {}) {
   manager.connection = {
     start: vi.fn(async () => {}),
     setContext: vi.fn(),
+    setPortMapping: vi.fn(async () => {}),
     stop: vi.fn(async () => {}),
     port: manager.config.port,
     externalIp: null,
@@ -126,9 +128,36 @@ describe('SeedManager lifecycle and config updates', () => {
     await manager.updateConfig({ port: 50000 });
 
     expect(manager.connection.stop).toHaveBeenCalledOnce();
-    expect(manager.connection.start).toHaveBeenCalledWith(50000);
+    expect(manager.connection.start).toHaveBeenCalledWith(50000, { portMapping: true });
     expect(manager.connection.setContext).toHaveBeenCalledOnce();
     expect(manager.runPortCheck).toHaveBeenCalledOnce();
+    saveSpy.mockRestore();
+  });
+
+  it('turns port mapping on and off without rebinding the port', async () => {
+    const saveSpy = vi.spyOn(configModule, 'saveConfig').mockImplementation(() => {});
+    const manager = createManager({ port: 49152, portMapping: true });
+    manager.running = true;
+
+    await manager.updateConfig({ portMapping: false });
+
+    expect(manager.connection.setPortMapping).toHaveBeenCalledWith(false);
+    expect(manager.connection.stop).not.toHaveBeenCalled();
+    expect(manager.connection.start).not.toHaveBeenCalled();
+    expect(manager.runPortCheck).toHaveBeenCalledOnce();
+    expect(manager.config.portMapping).toBe(false);
+    saveSpy.mockRestore();
+  });
+
+  it('starts the new connection with the mapping setting sent along with a port change', async () => {
+    const saveSpy = vi.spyOn(configModule, 'saveConfig').mockImplementation(() => {});
+    const manager = createManager({ port: 49152, portMapping: true });
+    manager.running = true;
+
+    await manager.updateConfig({ port: 50000, portMapping: false });
+
+    expect(manager.connection.start).toHaveBeenCalledWith(50000, { portMapping: false });
+    expect(manager.connection.setPortMapping).not.toHaveBeenCalled();
     saveSpy.mockRestore();
   });
 
@@ -145,8 +174,8 @@ describe('SeedManager lifecycle and config updates', () => {
 
     expect(manager.config.port).toBe(49152);
     expect(manager.connection.stop).toHaveBeenCalledOnce();
-    expect(manager.connection.start).toHaveBeenNthCalledWith(1, 50000);
-    expect(manager.connection.start).toHaveBeenNthCalledWith(2, 49152);
+    expect(manager.connection.start).toHaveBeenNthCalledWith(1, 50000, { portMapping: true });
+    expect(manager.connection.start).toHaveBeenNthCalledWith(2, 49152, { portMapping: true });
     expect(manager.connection.setContext).toHaveBeenCalledOnce();
     expect(saveSpy).not.toHaveBeenCalled();
     saveSpy.mockRestore();

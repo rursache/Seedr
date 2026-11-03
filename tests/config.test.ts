@@ -28,6 +28,7 @@ function fullConfig(overrides: Record<string, unknown> = {}) {
   return {
     client: 'test-client.client',
     port: 12345,
+    portMapping: false,
     minUploadRate: 50,
     maxUploadRate: 200,
     simultaneousSeed: 5,
@@ -74,6 +75,7 @@ describe('Config', () => {
       const config = loadConfig();
 
       expect(config.port).toBe(49152);
+      expect(config.portMapping).toBe(true);
       expect(config.minUploadRate).toBe(100);
       expect(config.maxUploadRate).toBe(500);
       expect(config.simultaneousSeed).toBe(-1);
@@ -117,7 +119,8 @@ describe('Config', () => {
       // Provided fields preserved
       expect(config.client).toBe('custom.client');
       expect(config.port).toBe(9999);
-      // Missing fields get defaults
+      // Missing fields get defaults, so a config written before port mapping existed gets it on
+      expect(config.portMapping).toBe(true);
       expect(config.minUploadRate).toBe(100);
       expect(config.maxUploadRate).toBe(500);
       expect(config.simultaneousSeed).toBe(-1);
@@ -334,6 +337,11 @@ describe('Config', () => {
     it('should accept empty object', () => {
       const result = validateConfigUpdate({});
       expect(result).toEqual({});
+    });
+
+    it('should accept the port mapping switch and nothing but a boolean', () => {
+      expect(validateConfigUpdate({ portMapping: false })).toEqual({ portMapping: false });
+      expect(() => validateConfigUpdate({ portMapping: 'yes' })).toThrow();
     });
 
     // Port validation

@@ -17,18 +17,19 @@ const logger = createLogger('config-updater');
 async function restartConnectionWithRollback(
   ctx: SeedContext,
   oldPort: number,
-  newPort: number
+  newPort: number,
+  portMapping: boolean
 ): Promise<void> {
   await ctx.connection.stop();
 
   try {
-    await ctx.connection.start(newPort);
+    await ctx.connection.start(newPort, { portMapping });
     ctx.connection.setContext(ctx.createConnectionContext());
     logger.info({ port: ctx.connection.port }, 'Port changed — connection handler restarted');
     ctx.runPortCheck();
   } catch (err) {
     try {
-      await ctx.connection.start(oldPort);
+      await ctx.connection.start(oldPort, { portMapping: ctx.config.portMapping });
       ctx.connection.setContext(ctx.createConnectionContext());
       logger.warn({ port: oldPort }, 'Restored previous port after failed port change');
     } catch (rollbackErr) {
@@ -78,7 +79,14 @@ export async function updateConfig(
 
   // If port changed and engine is running, restart connection handler
   if (updates.port !== undefined && updates.port !== oldPort && ctx.running) {
-    await restartConnectionWithRollback(ctx, oldPort, nextConfig.port);
+    await restartConnectionWithRollback(ctx, oldPort, nextConfig.port, nextConfig.portMapping);
+  } else if (
+    updates.portMapping !== undefined &&
+    updates.portMapping !== oldConfig.portMapping &&
+    ctx.running
+  ) {
+    await ctx.connection.setPortMapping(nextConfig.portMapping);
+    ctx.runPortCheck();
   }
 
   // Low-risk runtime state updates happen only after risky side effects succeed.

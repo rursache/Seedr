@@ -46,6 +46,20 @@ const speedDisplay = computed(() => {
   return formatSpeed(store.status?.actualUploadRate ?? 0);
 });
 
+// What the router said when Seedr asked it to forward the port
+const routerStatus = computed(() => {
+  const mapping = store.status?.portMapping;
+  if (!store.status?.running || !mapping) return null;
+  const via = mapping.protocol ? ` (${mapping.protocol})` : '';
+  switch (mapping.state) {
+    case 'searching': return { text: 'Router: looking for UPnP / NAT-PMP…', class: 'text-content-muted', title: '' };
+    case 'mapped': return { text: `Router: port forwarded${via}`, class: 'text-primary-accent', title: mapping.detail ?? '' };
+    case 'limited': return { text: `Router: another router in front${via}`, class: 'text-warning-accent', title: mapping.detail ?? '' };
+    case 'failed': return { text: 'Router: no automatic forwarding', class: 'text-content-muted', title: mapping.detail ?? '' };
+    default: return null;
+  }
+});
+
 const ipDisplay = computed(() => {
   if (!store.status?.running) return '—';
   return store.status.externalIp || 'Resolving...';
@@ -140,6 +154,9 @@ const ipDisplay = computed(() => {
         <div class="text-base md:text-lg font-semibold text-content-strong truncate">{{ ipDisplay }}</div>
         <div v-if="store.status?.running" class="text-base md:text-lg font-semibold text-content-strong shrink-0">{{ store.status.port }}</div>
         <div v-else class="text-base md:text-lg font-semibold text-content-muted shrink-0">—</div>
+      </div>
+      <div v-if="routerStatus" class="mt-1 text-xs truncate" :class="routerStatus.class" :title="routerStatus.title">
+        {{ routerStatus.text }}
       </div>
     </div>
   </div>

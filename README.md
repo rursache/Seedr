@@ -17,6 +17,7 @@ Seedr loads `.torrent` files, connects to their trackers, and announces simulate
 - HTTP and UDP (BEP-15) tracker support with automatic failover
 - Bandwidth simulation with weighted distribution and jitter
 - Real-time web dashboard with drag-and-drop torrent upload
+- Opens the BitTorrent port on your router automatically (UPnP / NAT-PMP)
 - Port reachability checker via [check-host.net](https://check-host.net)
 - Docker support with persistent data volume
 - Configurable upload ratio targets, simultaneous seed limits, and more
@@ -49,6 +50,19 @@ docker run -d \
   -v ./data:/data \
   ghcr.io/rursache/seedr:latest
 ```
+
+### Native installers (.deb / .exe)
+
+Each release also ships installers that bundle their own Node.js runtime, so nothing else needs to be installed:
+
+- **Debian / Ubuntu** (`amd64`, `arm64`): `sudo apt install ./seedr_<version>_<arch>.deb`. Seedr is a desktop application: start **Seedr** from the applications menu (or run `seedr`) and the dashboard opens in its own window. Closing the window leaves Seedr running in the notification area: its icon offers to show the window, pause or resume seeding, open the dashboard in a browser, or quit. That needs an indicator library, which `apt` installs as a recommendation; on a desktop with no notification area (GNOME needs its AppIndicator extension, which Ubuntu enables), closing the window quits Seedr instead. Add Seedr to your desktop's startup applications to have it running after login. Data is stored in `~/.local/share/seedr` and the logs go to the journal (`journalctl -t seedr`). The window uses WebKitGTK, which `apt` pulls in as a dependency.
+- **Windows 10/11 (x64)**: run `Seedr-Setup-<version>-x64.exe`, then start **Seedr** from the Start menu. It works like the Linux app: the dashboard opens in its own window, and closing the window leaves Seedr running in the notification area, whose icon menu shows the window, pauses or resumes seeding, opens the dashboard in a browser, or quits (setup asks for Seedr to be quit that way before it updates it). To have it running after sign-in, put a shortcut to `Seedr.exe` in the folder opened by `shell:startup`. Data is stored in `%LOCALAPPDATA%\Seedr\data` and the log in `%LOCALAPPDATA%\Seedr\logs\seedr.log`. The window uses the Microsoft Edge WebView2 Runtime, which comes with Windows 11 and up-to-date Windows 10 (Seedr links to the download page if it is missing). The installer adds a firewall rule for `node.exe` so the BitTorrent port is reachable.
+
+The desktop apps also serve their dashboard on `127.0.0.1:8080` while they run (any free port if that one is taken), so it can be opened in a browser too, but never with authentication or on another interface: use Docker for a headless setup. Packaging scripts live in `packaging/`, and the `Installers` workflow builds them when a release is published.
+
+Earlier `.deb` releases ran Seedr as a systemd service. Installing the desktop package stops and disables that service but leaves its data in `/var/lib/seedr`; with Seedr closed, copy it over with `cp -r /var/lib/seedr/. ~/.local/share/seedr/`.
+
+Earlier Windows installers ran Seedr as a Windows service. Installing the desktop version stops and removes that service but leaves its data in `C:\ProgramData\Seedr\data`; with Seedr closed, copy it over with `Copy-Item C:\ProgramData\Seedr\data\* $env:LOCALAPPDATA\Seedr\data -Recurse` (in PowerShell). The old `seedr.env` settings file is no longer read.
 
 ### Production build
 
@@ -84,6 +98,12 @@ The backend runs on port `8080` with hot reload. The Vite frontend dev server pr
 
 The BitTorrent port (default `49152`) is the port that trackers and peers use to verify your client is reachable. This is the port you need to forward on your router/firewall, not the web UI port. The web UI port (`8080`) should stay local and not be exposed to the internet. If you really want to expose the WebUI port as well, make sure to enable auth!
 
+By default Seedr asks your router to forward that port itself, over NAT-PMP and then UPnP, and renews the request while it runs. The result is shown under the external IP in the dashboard. Seedr removes the forwarding when it stops, or when you turn **Open the port on the router** off in the settings. It only works when the router has UPnP or NAT-PMP turned on and is the one connected to the internet:
+
+- **Another router in front of yours** (an ISP box behind your own router, for instance): the dashboard says so, and the port still has to be forwarded by hand on each of them.
+- **Docker**: containers on a bridge network do not see the router, so forward the port yourself, or run the container with `network_mode: host`.
+- **A mapping that never expires**: some routers only accept those, and one is left behind if Seedr is killed instead of stopped. Remove it in the router's page.
+
 ## Configuration
 
 All configuration is managed through the web UI Settings panel. Settings are persisted to `data/config.json`.
@@ -92,6 +112,7 @@ All configuration is managed through the web UI Settings panel. Settings are per
 |---------|---------|-------------|
 | Client Profile | first available qBittorrent profile | Which BT client to emulate |
 | Port | 49152 | Listening port announced to trackers |
+| Open the port on the router | on | Ask the router to forward the port (UPnP / NAT-PMP) |
 | Min Upload Rate | 100 KB/s | Minimum simulated upload speed |
 | Max Upload Rate | 500 KB/s | Maximum simulated upload speed |
 | Max Active Torrents | -1 (all) | How many torrents to seed at once (-1 = unlimited) |

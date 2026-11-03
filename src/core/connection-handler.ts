@@ -1,6 +1,8 @@
 import net from 'node:net';
 import { randomInt } from 'node:crypto';
 import { resolveExternalIpv4, resolveExternalIpv6 } from '../utils/ip-resolver.js';
+import { PortMapper } from '../utils/port-mapper.js';
+import type { PortMappingStatus } from '../utils/port-mapper.js';
 import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('connection');
@@ -32,6 +34,9 @@ export class ConnectionHandler {
   private _externalIpv6: string | null = null;
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
   private context: ConnectionContext | null = null;
+  private mapping: Promise<unknown> = Promise.resolve();
+
+  constructor(private readonly portMapper: PortMapper = new PortMapper()) {}
 
   get port(): number {
     return this._port;
@@ -43,6 +48,25 @@ export class ConnectionHandler {
 
   get externalIpv6(): string | null {
     return this._externalIpv6;
+  }
+
+  get portMapping(): PortMappingStatus {
+    return this.portMapper.getStatus();
+  }
+
+  /** Resolves once the router has been asked to forward the port, whatever the answer. */
+  whenPortMapped(): Promise<void> {
+    return this.mapping.then(() => undefined);
+  }
+
+  /** Turn the automatic forwarding on or off while the port is bound. */
+  async setPortMapping(enabled: boolean): Promise<void> {
+    if (!this.server) return;
+    if (enabled) {
+      this.mapping = this.portMapper.start(this._port);
+    } else {
+      await this.portMapper.stop();
+    }
   }
 
   /**
@@ -133,8 +157,11 @@ export class ConnectionHandler {
   /**
    * Bind a TCP port. If configuredPort is 0, pick a random one in the ephemeral range.
    * Retries up to 3 times on collision when using random ports.
+   *
+   * With `portMapping` the router is asked to forward the port in the
+   * background, so a slow or absent router never delays startup.
    */
-  async start(configuredPort: number): Promise<void> {
+  async start(configuredPort: number, options: { portMapping?: boolean } = {}): Promise<void> {
     const maxAttempts = configuredPort === 0 ? 3 : 1;
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -167,6 +194,8 @@ export class ConnectionHandler {
         throw err;
       }
     }
+
+    if (options.portMapping) this.mapping = this.portMapper.start(this._port);
 
     // Resolve external IPs
     await this.refreshIps();
@@ -203,6 +232,8 @@ export class ConnectionHandler {
       clearInterval(this.refreshTimer);
       this.refreshTimer = null;
     }
+
+    await this.portMapper.stop();
 
     if (this.server) {
       await new Promise<void>((resolve) => {

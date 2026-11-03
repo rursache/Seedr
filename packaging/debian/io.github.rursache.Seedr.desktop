@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Seedr
+GenericName=BitTorrent ratio master
+Comment=Emulate BitTorrent clients and report simulated upload to trackers
+Exec=seedr
+Icon=seedr
+Terminal=false
+Categories=Network;FileTransfer;P2P;
+Keywords=torrent;bittorrent;ratio;seed;tracker;
+StartupWMClass=io.github.rursache.Seedr
