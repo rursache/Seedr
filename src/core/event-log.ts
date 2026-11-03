@@ -1,4 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
+import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { DATA_DIR } from '../config/config.js';
 import { createLogger } from '../utils/logger.js';
@@ -68,6 +69,9 @@ export class EventLog {
   private insertsSincePrune = 0;
 
   constructor(dataDir: string = DATA_DIR) {
+    // Built as a field of SeedManager, ahead of the config load that creates the
+    // data directory, so a first run would otherwise find nothing to open the file in.
+    mkdirSync(dataDir, { recursive: true });
     this.db = new DatabaseSync(join(dataDir, 'events.db'));
     // WAL keeps readers off the writer's back and avoids an fsync per commit;
     // NORMAL is the usual durability tradeoff for a log we can afford to lose

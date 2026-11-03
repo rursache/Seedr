@@ -56,6 +56,15 @@ describe('EventLog', () => {
     expect(log.list().map((e) => e.type)).toEqual(['stopped', 'started']);
   });
 
+  it('creates a data directory that does not exist yet', () => {
+    const fresh = join(dir, 'not', 'yet');
+
+    log = new EventLog(fresh);
+    log.record('started', {});
+
+    expect(existsSync(join(fresh, 'events.db'))).toBe(true);
+  });
+
   it('continues the id sequence across a reopen', () => {
     const l = open();
     const first = l.record('a', {});
